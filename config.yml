@@ -4,4 +4,6 @@ credentials-file: /Users/jenkim/.cloudflared/29ad3d9a-32e9-4507-aa0c-ebf9b6bf167
 ingress:
   - hostname: stopandgrowkc.org
     service: http://127.0.0.1:3000
+  - hostname: www.stopandgrowkc.org
+    service: http://127.0.0.1:3000
   - service: http_status:404
