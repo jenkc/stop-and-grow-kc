@@ -1,7 +1,16 @@
+import { PageShell } from "@/components/page-shell";
+
 export default function HowItWorks() {
     return (
-        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans">
-            How It Works Page Here
-        </div>
+        <PageShell>
+            <div className="flex flex-col items-center justify-center p-10">
+                <h1 className="text-2xl font-bold mb-4">About</h1>
+                <p className="mb-4">This is the about section.</p>
+                <h1 className="text-2xl font-bold mb-4">How It Works</h1>
+                <p className="mb-4">This is the how it works section.</p>
+                <h1 className="text-2xl font-bold mb-4">Contact</h1>
+                <p className="mb-4">This is the contact section.</p>
+            </div>
+        </PageShell>
     )
 }

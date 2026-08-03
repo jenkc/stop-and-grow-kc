@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 
 export default function Order() {
     const [boxAmount, setBoxAmount] = useState<number>(0);
@@ -27,203 +30,176 @@ export default function Order() {
     // }
 
     return (
-        <form className="flex flex-col pr-10 pl-10 flex-1 items-center justify-start bg-zinc-50 font-sans">
+        <form className="flex flex-col pr-10 pl-10 flex-1 items-center justify-start font-sans bg-paper">
             <div className="space-y-3 pt-3">
 
                 {/* Form Header */}
-                <h2 className="pt-3 text-base/7 font-semibold text-gray-900">Vegetable Box Order Form</h2>
-                <p className="mb-3 text-sm/6 text-gray-600">
+                <h1 className="pt-3 font-bold">Vegetable Box Order Form</h1>
+                <p className="mb-3">
                     Please choose a dollar amount for your vegetable box and select delivery or pickup. If you choose delivery, please provide your address and preferred time window.
                 </p>
 
+                {/* Customer Information Fields */}
+                <Field>
+                    <FieldLabel htmlFor="custName">
+                        Name
+                    </FieldLabel>
+                    <Input 
+                    type="text"
+                    id="custName"
+                    name="custName"
+                    placeholder="Enter your name"/>
+                </Field>
+
+                <Field>
+                    <FieldLabel htmlFor="custEmail">
+                        Email
+                    </FieldLabel>
+                    <Input 
+                    type="email"
+                    id="custEmail"
+                    name="custEmail"
+                    placeholder="Enter your email"/>
+                </Field>
+
+                <Field>
+                    <FieldLabel htmlFor="custPhone">
+                        Phone Number
+                    </FieldLabel>
+                    <Input 
+                    type="tel"
+                    id="custPhone"
+                    name="custPhone"
+                    placeholder="Enter your phone number"/>
+                </Field>
+
                 {/* Box Amount Selection */}
-                <div className="sm:col-span-3 pt-1">
-                    <label htmlFor="amtDollars" className="block pt-1.25 text-sm/6 font-medium text-gray-900">
+                <Field>
+                    <FieldLabel htmlFor="amtDollars">
                         Vegetable Box Amount - $USD
-                    </label>
-                    <div className="mt-2 grid grid-cols-1">
-                        <select
-                        value={boxAmount || ""}
-                        onChange={ (event) => setBoxAmount(Number(event.target.value)) }
-                        className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        >
-                            <option value="0">Select Price...</option>
-                            <option value="5">$5 Box</option>
-                            <option value="10">$10 Box</option>
-                            <option value="15">$15 Box</option>
-                            <option value="20">$20 Box</option>
-                            <option value="25">$25 Box</option>
-                            <option value="30">$30 Box</option>
-                        </select>
-                        <Image
-                        src="/down-chevron.png"
-                        alt=""
-                        width={20}
-                        height={20}
-                        aria-hidden="true"
-                        className="pointer-events-none col-start-1 row-start-1 mr-2 w-5 h-5 self-center justify-self-end text-gray-500 sm:w-4 sm:h-4"
-                        />
-                    </div>
-                </div>
+                    </FieldLabel>
+                    <NativeSelect>
+                        <option value="0">Select Price...</option>
+                        <option value="5">$5 Box</option>
+                        <option value="10">$10 Box</option>
+                        <option value="15">$15 Box</option>
+                        <option value="20">$20 Box</option>
+                        <option value="25">$25 Box</option>
+                        <option value="30">$30 Box</option>
+                    </NativeSelect>
+                </Field>
 
                 {/* Quantity Selection */}
-                <div className="sm:col-span-3 pt-1">
-                    <label htmlFor="amtDollars" className="block pt-1.25 text-sm/6 font-medium text-gray-900">
-                        Quantity
-                    </label>
-                    <div className="mt-2 grid grid-cols-1">
-                        <select
-                        value={quantity || ""}
-                        onChange={ (event) => setQuantity(Number(event.target.value)) }
-                        className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        >
-                            <option value="0">
-                                Select Quantity...
-                            </option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                        </select>
-                        <Image
-                        src="/down-chevron.png"
-                        alt=""
-                        width={20}
-                        height={20}
-                        aria-hidden="true"
-                        className="pointer-events-none col-start-1 row-start-1 mr-2 w-5 h-5 self-center justify-self-end text-gray-500 sm:w-4 sm:h-4"
-                        />
-                    </div>
-                </div>
+                <Field>
+                    <FieldLabel htmlFor="quantity">
+                        How many boxes?
+                    </FieldLabel>
+                    <NativeSelect>
+                        <option value="0">Select Quantity...</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </NativeSelect>
+                </Field>
 
                 {/* Pickup or Delivery Selection */}
-                <div className="sm:col-span-3 mt-1 pt-1">
-                    <label htmlFor="pickupOrDelivery" className="block pt-1.25 text-sm/6 font-medium text-gray-900">
+                <Field>
+                    <FieldLabel htmlFor="pickupOrDelivery">
                         Pickup or Delivery
-                    </label>
-                    <div className="mt-2 grid grid-cols-1">
-                        <select
-                        className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        >   
-                            <option value="0">Select One...</option>
-                            <option value="pickup">Pickup</option>
-                            <option value="delivery">Delivery</option>
-                        </select>
-                        <Image
-                        src="/down-chevron.png"
-                        alt=""
-                        width={20}
-                        height={20}
-                        aria-hidden="true"
-                        className="pointer-events-none col-start-1 row-start-1 mr-2 w-5 h-5 self-center justify-self-end text-gray-500 sm:w-4 sm:h-4"
-                        />
-                    </div>
-                </div>
-             
+                    </FieldLabel>
+                    <NativeSelect>
+                        <option value="0">Select One...</option>
+                        <option value="pickup">Pickup</option>
+                        <option value="delivery">Delivery</option>
+                    </NativeSelect>
+                </Field>
+
                 {/* Delivery address input fields (only displayed if delivery is selected) */}
-                <div className="sm:col-span-3 mb-2 pt-1.25">
-                    <h2 className="block pt-1.25 mb-2 font-bold text-gray-900">
-                        Delivery Address:
-                    </h2>
-                    {/* Street Address field */}
-                    <div>
-                        <label htmlFor="streetAddress" className="block pt-1.25 text-sm/6 font-medium text-gray-900">Street Address</label>
-                        <input
+                <h2 className="block pt-1.25 mb-2 font-bold">
+                    Delivery Address:
+                </h2>
+                {/* Street Address field */}
+                <Field>
+                    <FieldLabel htmlFor="streetAddress">
+                        Street Address
+                    </FieldLabel>
+                    <Input 
+                    type="text"
+                    id="streetAddress"
+                    name="streetAddress"
+                    placeholder="Enter your delivery address"/>
+                </Field>           
+
+                {/* Apartment, Suite, etc. field */}
+                <Field>
+                    <FieldLabel htmlFor="aptSuite" className="block pt-1.25 text-sm/6 font-medium text-gray-900">Apartment, Suite, etc.</FieldLabel>
+                    <Input
+                    type="text"
+                    id="aptSuite"
+                    name="aptSuite"
+                    placeholder="Apt 4B"
+                    />
+                </Field>
+
+                {/* City and State fields /*/}
+                <div className="flex flex-row flex-wrap">
+                    {/* City input */}
+                    <Field>
+                        <FieldLabel htmlFor="city">
+                            City
+                        </FieldLabel>
+                        <Input 
                         type="text"
-                        id="streetAddress"
-                        name="streetAddress"
-                        placeholder="Enter your delivery address"
-                        className="col-start-1 row-start-1 pt-1.25 mt-2 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                        id="city"
+                        name="city"
+                        placeholder="City"
                         />
-                    </div>
+                    </Field>
 
-                    {/* Apartment, Suite, etc. field */}
-                    <div>
-                        <label htmlFor="aptSuite" className="block pt-1.25 text-sm/6 font-medium text-gray-900">Apartment, Suite, etc.</label>
-                        <input
-                        type="text"
-                        id="aptSuite"
-                        name="aptSuite"
-                        placeholder="Apt 4B"
-                        className="col-start-1 row-start-1 pt-1.25 w-full mt-2 appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        />
-                    </div>
-
-                    {/* City and State fields /*/}
-                    <div className="flex flex-row flex-wrap justify-between gap-2">
-                        {/* City input */}
-                        <div>
-                            <label htmlFor="city" className="block pt-1.25 text-sm/6 font-medium text-gray-900">City</label>
-                            <input 
-                            type="text"
-                            id="city"
-                            name="city"
-                            placeholder="City"
-                            className="col-start-1 row-start-1 pt-1.25 justify-self-end w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                            />
-                        </div>
-
-                        {/* State selection */}
-                        <div className="sm:col-span-3">
-                            <label htmlFor="state" className="block pt-1.25 text-sm/6 font-medium text-gray-900">
+                    {/* State selection */}
+                    <div className="sm:col-span-3">
+                        <Field>
+                            <FieldLabel htmlFor="state">
                                 State
-                            </label>
-                            <div className="grid grid-cols-1">
-                                <select className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-5 pl-5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
-                                    <option value="0">Select...</option>
-                                    <option value="KS">Kansas</option>
-                                    <option value="MO">Missouri</option>
-                                    <option value="OK">Oklahoma</option>
-                                    <option value="IA">Iowa</option>
-                                </select>
-                                <Image
-                                src="/down-chevron.png"
-                                alt=""
-                                width={20}
-                                height={20}
-                                aria-hidden="true"
-                                className="pointer-events-none col-start-1 row-start-1 mr-2 w-5 h-5 self-center justify-self-end text-gray-500 sm:w-4 sm:h-4"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Zip Code input */}
-                    <div>
-                        <label htmlFor="zipCode" className="block pt-1.25 text-sm/6 font-medium text-gray-900">Zip Code</label>
-                        <input
-                        type="text"
-                        id="custZipCode"
-                        placeholder="Enter your zip code"
-                        className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        />
+                            </FieldLabel>
+                            <NativeSelect>
+                                <option value="0">Select...</option>
+                                <option value="KS">Kansas</option>
+                                <option value="MO">Missouri</option>
+                                <option value="OK">Oklahoma</option>
+                                <option value="IA">Iowa</option>
+                            </NativeSelect>
+                        </Field>
                     </div>
                 </div>
+
+                {/* Zip Code input */}
+                <Field>
+                    <FieldLabel htmlFor="zipCode">
+                        Zip Code
+                    </FieldLabel>
+                    <Input
+                    type="text"
+                    id="custZipCode"
+                    placeholder="Enter your zip code"
+                    />
+                </Field>
 
                 {/* Time window selection for delivery */}
-                <div className="sm:col-span-3 pt-1.25">
-                    <label htmlFor="timeWindow" className="block pt-1.25 text-sm/6 font-medium text-gray-900">
+                <Field>
+                    <FieldLabel htmlFor="timeWindow">
                         Select Delivery Time Window...
-                    </label>
-                    <div className="mt-2 grid grid-cols-1">
-                        <select className="col-start-1 row-start-1 pt-1.25 w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
-                            <option value="0">Select One...</option>
-                            <option value="morning">Morning (8:00 AM - 12:00 PM)</option>
-                            <option value="afternoon">Afternoon (12:00 PM - 5:00 PM)</option>
-                            <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
-                        </select>
-                        <Image
-                        src="/down-chevron.png"
-                        alt=""
-                        width={20}
-                        height={20}
-                        aria-hidden="true"
-                        className="pointer-events-none col-start-1 row-start-1 mr-2 w-5 h-5 self-center justify-self-end text-gray-500 sm:w-4 sm:h-4"
-                        />
-                    </div>
-                </div>
+                    </FieldLabel>
+                    <NativeSelect>
+                        <option value="0">Select One...</option>
+                        <option value="morning">Morning (8:00 AM - 12:00 PM)</option>
+                        <option value="afternoon">Afternoon (12:00 PM - 5:00 PM)</option>
+                        <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
+                    </NativeSelect>
+                </Field>
 
                 {/* Total Price Display and Submit Button */}
                 <div className="mr-5 ml-5 flex flex-col items-end justify-end">
@@ -235,7 +211,7 @@ export default function Order() {
                     </p>
                 </div>
 
-                <button type="submit" className="h-12 mx-auto flex items-center justify-center mt-5 whitespace-nowrap rounded-full bg-green-500 px-5 text-white transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]">
+                <button type="submit" className="h-12 mx-auto flex items-center bg-primary text-white justify-center mt-5 whitespace-nowrap rounded-full px-5 transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]">
                     Go to Checkout
                 </button>
             </div>

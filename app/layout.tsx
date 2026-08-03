@@ -1,26 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Raleway } from "next/font/google";
+import { Raleway, DM_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-const raleway = Raleway({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const fraunces = Fraunces({
+  subsets:['latin'],
+  variable: '--font-fraunces',
+  axes: ["SOFT", "WONK", "opsz"]
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const raleway = Raleway({subsets:['latin'],variable:'--font-raleway'});
+
+const dmMono = DM_Mono({
+  weight: ["400", "500"],
+  subsets:['latin'],
+  variable:'--font-dm-mono'});
 
 export const metadata: Metadata = {
   title: "Stop and Grow KC",
   description: "Community Produce Distribution in Kansas City",
 };
+
 
 export default function RootLayout({
   children,
@@ -30,45 +34,65 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", raleway.variable)}
+      suppressHydrationWarning
+      className={cn("h-full", "antialiased", raleway.variable, dmMono.variable, fraunces.variable)}
     > 
-      <body className="min-h-full flex flex-col bg-white">
-        <header className="flex justify-start">
-          <Link
-            href={`/`}>
-            <Image
-              src="/tomato.jpeg"
-              alt="Stop and Grow logo text"
-              className="p-1"
-              width={50}
-              height={50}
-              priority 
-            />
-          </Link>
-        </header>
-        
-        {children}
-        
-        <footer className="flex flex-col h-24 mt-5 items-center justify-center border-t bg-white">
-          {/* Social media links */}
-          <div className="flex flex-row mb-2 gap-4">
-            <Link href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
-              <Image src="/facebook.png" alt="Facebook link" width={30} height={30} />
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider 
+        attribute="class" 
+        defaultTheme="system" 
+        enableSystem={false}
+        disableTransitionOnChange
+        >
+          <div className="grain" aria-hidden="true" />
+          
+          <header className="flex justify-between">
+            <Link
+              href={`/`}
+              className="flex items-center gap-2.5">
+              <Image
+              src="/tomato_transp_bg_cropped.png"
+              alt=""
+              aria-hidden="true"
+              width={1526}
+              height={985}
+              className="h-8 w-auto"
+              priority
+              />
+              <Image
+              src="/wordmark.png"
+              alt="Stop and Grow KC"
+              width={545}
+              height={218}
+              className="h-6 w-auto dark:invert dark:brightness-125"
+              priority
+              />
             </Link>
-            <Link href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">
-              <Image src="/instagram.png" alt="Instagram link" width={30} height={30} />
-            </Link>        
-            <Link href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">
-              <Image src="/linkedin.png" alt="LinkedIn link" width={30} height={30} />
-            </Link>
-          </div>
-          <div className="flex flex-row gap-4 text-base font-medium sm:flex-column">
-            <a href="/About">About Us</a>
-            <a href="/HowItWorks">How it Works</a>
-            <a href="/Contact">Contact</a>
-          </div>
-        </footer>
+            <ThemeToggle />
+          </header>
 
+          {children}
+        
+          <footer className="flex flex-col h-24 mt-5 items-center justify-center border-t">
+            {/* Social media links */}
+            <div className="flex flex-row mb-2 gap-4">
+              <Link href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
+                <Image src="/facebook.png" alt="Facebook link" width={30} height={30} />
+              </Link>
+              <Link href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">
+                <Image src="/instagram.png" alt="Instagram link" width={30} height={30} />
+              </Link>        
+              <Link href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">
+                <Image src="/linkedin.png" alt="LinkedIn link" width={30} height={30} />
+              </Link>
+            </div>
+            <div className="flex flex-row gap-4 text-base font-medium sm:flex-column">
+              <a href="/HowItWorks">About Us</a>
+              <a href="/HowItWorks">How it Works</a>
+              <a href="/HowItWorks">Contact</a>
+            </div>
+          </footer>
+        </ThemeProvider>
       </body>
     </html>
   );

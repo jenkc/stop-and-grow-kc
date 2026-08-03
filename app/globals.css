@@ -5,80 +5,131 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --color-background: #ffffff;
-  --color-foreground: #171717;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.508 0.118 165.612);
-  --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.596 0.145 163.225);
-  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  /* ---- Layer 1: raw brand ink ----
+     The design system's palette, verbatim. These are the only values that
+     change in .dark — everything below points at them through var(). */
+  --paper: #FAF7F0;  /* warm cream, from her business card ground */
+  --paper-2: #F0EADC;  /* second cream for cards, not a dead grey */
+  --ink: #0B0A0C;
+  --riso-red: #B93A26;  /* 5.31:1 under paper-colored button labels */
+  --riso-pink: #EC1B7F;
+  --riso-yellow: #FFD400;
+  --riso-cyan: #00B7D4;
+  --riso-green: #3FA34D;
+  --brand-green: #307242;  /* hers — locked, never changes in light */
+  --brand-tomato: #8B3A28;  /* hers — it's a painting, never recolored */
+  --muted-ink: #6A6558;     /* muted TEXT. Named -ink because shadcn's --muted below is a BACKGROUND. */
+
+  /* Two border weights, because they do different jobs. --line is
+     decoration; --line-mid has to survive a tablet in sunlight. */
+  --line: #D6CFBE;  /* decorative hairlines, table rules */
+  --line-mid: #8C8371;  /* field borders — 3.50:1, clears WCAG 3:1 */
+  --line-strong: #0B0A0C; /* only where a real edge is needed */
+  --rule: 1px;
+  --grain: .055;
+
+  /* Structure. Borders are for legibility now, not decoration — cards and
+     sections separate with whitespace and background tint instead of rules. */
+  --line: #C9C2B0;          /* hairline: a soft warm grey, not near-black */
+  --line-strong: #0B0A0C;   /* only where a real edge is needed */
+  --rule: 1px;
+  --grain: .055;
+
+  /* ---- Status colors ----
+     Each riso ink earns a job, so Scraps reads order state at a glance
+     without parsing numbers. These drive the admin chips and form sections. */
+  --ok: #3FA34D;              /* paid */
+  --warn: #FFD400;            /* cash pending / awaiting */
+  --crit: #F5253C;            /* unpaid / alert */
+  --info: #00B7D4;            /* focus, info, cyan accents */
+  --delivery: #EC1B7F;        /* delivery — pink */
+  --pickup: #00B7D4;          /* pickup — cyan */
+
+  /* Tinted grounds: the same inks at ~12% over paper, for section washes
+     and status chip backgrounds that stay readable with ink-colored text. */
+  --ok-tint: color-mix(in srgb, var(--ok) 14%, var(--paper));
+  --warn-tint: color-mix(in srgb, var(--warn) 20%, var(--paper));
+  --crit-tint: color-mix(in srgb, var(--crit) 12%, var(--paper));
+  --info-tint: color-mix(in srgb, var(--info) 12%, var(--paper));
+  --delivery-tint: color-mix(in srgb, var(--delivery) 10%, var(--paper));
+  --pickup-tint: color-mix(in srgb, var(--pickup) 10%, var(--paper));
+
+  /* ---- Layer 2: shadcn semantics ----
+     Every token the installed components reference. Pointers, not colors —
+     which is why .dark only has to override layer 1. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-2);
+  --card-foreground: var(--ink);
+  --primary: var(--riso-red);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--muted-ink);
+  --destructive: var(--crit);
+  --border: var(--line);
+  --input: var(--line-mid);
+  --ring: var(--riso-cyan);
+  --radius: 0.5rem;
+  /* Raleway carries all UI text; DM Mono the figures. Fraunces is back as a
+  soloist — h1 only, one per page. Her wordmark is a Cooper/Windsor and
+  Raleway echoes nothing in it, which left the wordmark an orphan. */
+  --font-sans: var(--font-raleway);
+  --font-mono: var(--font-dm-mono);
+  --font-display: var(--font-fraunces);
 }
 
-/* Automatic dark mode disabled. Use explicit classes or a JS toggle to enable dark theme. */
-
+/* This block is what turns a variable into a utility class.
+   --color-paper here is what makes `bg-paper` exist. */
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+
+  /* shadcn semantics — the 13 tokens the installed components reference */
   --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Raw palette — reach for these when hand-writing riso details */
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-riso-red: var(--riso-red);
+  --color-riso-pink: var(--riso-pink);
+  --color-riso-yellow: var(--riso-yellow);
+  --color-riso-cyan: var(--riso-cyan);
+  --color-riso-green: var(--riso-green);
+  --color-brand-green: var(--brand-green);
+  --color-brand-tomato: var(--brand-tomato);
+  --color-line-strong: var(--line-strong);
+
+  /* Status inks + their tinted grounds — bg-ok-tint text-ok, etc. */
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --color-info: var(--info);
+  --color-delivery: var(--delivery);
+  --color-pickup: var(--pickup);
+  --color-ok-tint: var(--ok-tint);
+  --color-warn-tint: var(--warn-tint);
+  --color-crit-tint: var(--crit-tint);
+  --color-info-tint: var(--info-tint);
+  --color-delivery-tint: var(--delivery-tint);
+  --color-pickup-tint: var(--pickup-tint);
+
+  /* --radius is 0.5rem. These scale from it, including the rounded-3xl/4xl that base-luma hardcodes. */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -88,38 +139,34 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Warm purple-black, not cool grey. Inks brighten so they still glow on a
+   dark ground. Only layer 1 is overridden — layer 2 follows automatically. */
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.432 0.095 166.913);
-  --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  --paper: #141118;  /* lifted slightly so grain reads as texture */
+  --paper-2: #1E1A26;
+  --ink: #F2EFE6;
+  --riso-red: #FF4757;
+  --riso-pink: #FF3D95;
+  --riso-yellow: #FFDE3D;
+  --riso-cyan: #2AD4EE;
+  --riso-green: #5CC96B;
+
+  /* A lighter RENDERING of her green for legibility — not a rebrand. Without this it sits at 3.30:1 and fails AA. Same relationship the riso inks already have between light and dark. */
+  --brand-green: #4E9E63;   /* 5.69:1 */
+  --muted-ink: #9A9285;
+  --line: #3A3446;
+  --line-mid: #6E6579;
+  --line-strong: #6B6280;
+  --grain: .06;  /* .085 screen-blended read as dirt, not grain */
+
+  /* Tints re-mix against the dark ground automatically, but need a heavier
+     ink share to stay visible against #100E14. */
+  --ok-tint: color-mix(in srgb, var(--ok) 22%, var(--paper));
+  --warn-tint: color-mix(in srgb, var(--warn) 22%, var(--paper));
+  --crit-tint: color-mix(in srgb, var(--crit) 16%, var(--paper));
+  --info-tint: color-mix(in srgb, var(--info) 22%, var(--paper));
+  --delivery-tint: color-mix(in srgb, var(--delivery) 18%, var(--paper));
+  --pickup-tint: color-mix(in srgb, var(--pickup) 18%, var(--paper));
 }
 
 @layer base {
@@ -128,8 +175,173 @@
   }
   body {
     @apply bg-background text-foreground;
+    position: relative;
   }
   html {
     @apply font-sans;
+  }
+
+  /* base-luma labels are text-sm (14px) — a touch small for a form people
+  fill out on a phone, outdoors. */
+  [data-slot="field-label"],
+  [data-slot="label"] {
+    font-size: 0.9375rem;   /* 15px */
+  }
+
+  /* Sentence case, weight 700, normal tracking. The earlier uppercase Archivo Black 900 with tight letter-spacing was the main source of shoutiness — this is the calmer replacement. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  /* Fraunces is a soloist, not a section. One h1 per page — the page's
+      single big question. Using it on every heading is what made the
+      earlier system shout. WONK 1 splays the terminals, SOFT 60 rounds
+      the corners: as close as a variable font gets to Cooper's warmth. */
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-variation-settings: "SOFT" 60, "WONK" 1, "opsz" 72;
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    letter-spacing: -0.015em;
+  }
+  h2 { font-size: clamp(1.5rem, 3.5vw, 2.25rem); letter-spacing: -0.01em; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.05rem; }
+
+  /* The letterspaced sans from her business card —
+      "P R O D U C E   D I S T R I B U T I O N". Taglines, eyebrows,
+      table column headers. */
+  .eyebrow {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted-ink);
+  }
+  
+
+  /* Figures: prices, order numbers, times. Tabular so admin columns align. */
+  .figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ============================================================
+   Status chips — the color-coded vocabulary.
+   <span class="chip chip-paid">Paid</span>
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.15rem 0.5rem;
+  border: var(--rule) solid currentColor;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Text is a DEEPENED version of each ink, not the ink itself — the raw riso
+   colors on their own tint fail contrast badly (cyan was 1.9:1). These all
+   clear 4.5:1 on paper. Scraps reads these on a tablet, outdoors. */
+.chip-paid     { color: #2D6D36; background: var(--ok-tint); }
+.chip-cash     { color: var(--ink); background: var(--warn-tint); }
+.chip-unpaid   { color: #BA1E30; background: var(--crit-tint); }
+.chip-delivery { color: #B41762; background: var(--delivery-tint); }
+.chip-pickup   { color: #05697A; background: var(--pickup-tint); }
+
+/* On the dark ground the tints are dark, so the bright inks read correctly. */
+.dark .chip-paid     { color: var(--ok); }
+.dark .chip-cash     { color: var(--warn); }
+.dark .chip-unpaid   { color: var(--crit); }
+.dark .chip-delivery { color: var(--delivery); }
+.dark .chip-pickup   { color: var(--pickup); }
+
+/* ============================================================
+   Riso texture
+   ============================================================ */
+
+/* The grain is what makes flat color read as printed rather than rendered.
+   Stepped animation (not smooth) so it flickers like a press, not a gradient.
+   Render once in the root layout: <div class="grain" aria-hidden="true" /> */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 99;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain-shift 0.7s steps(3) infinite;
+  mix-blend-mode: multiply;
+}
+
+/* On a dark ground the noise has to ADD light, or it reads as dirt. */
+.dark .grain {
+  mix-blend-mode: screen;
+}
+
+@keyframes grain-shift {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(-5%, 3%); }
+  66%  { transform: translate(4%, -4%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Misregistration — the signature move. Riso pulls one color at a time and the
+   layers never line up; the slip is the charm. Two lines of CSS, no template
+   has it. HEADINGS ONLY — on body text it wrecks legibility.
+   Usage: <h2 class="mis" data-t="Thursday">Thursday</h2>
+   The data-t attribute must repeat the visible text exactly. */
+.mis {
+  position: relative;
+  display: inline-block;
+}
+
+.mis::before {
+  content: attr(data-t);
+  position: absolute;
+  left: -3px;
+  top: 2px;
+  color: var(--riso-cyan);
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+
+.dark .mis::before {
+  mix-blend-mode: screen;
+}
+
+/* ============================================================
+   Print — Scraps prints runsheets and packing lists on a tablet.
+   Ink-heavy screen chrome must not carry over onto paper.
+   ============================================================ */
+@media print {
+  .grain,
+  .no-print {
+    display: none !important;
+  }
+
+  .mis::before {
+    content: none;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+}
+
+/* Respect reduced-motion: kill the grain flicker, keep the texture. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
