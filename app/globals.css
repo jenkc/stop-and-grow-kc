@@ -221,7 +221,6 @@
     color: var(--muted-ink);
   }
   
-
   /* Figures: prices, order numbers, times. Tabular so admin columns align. */
   .figure {
     font-family: var(--font-mono);

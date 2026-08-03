@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Suspense } from "react";
+import { PageShell } from "@/components/page-shell";
 
 async function OrdersData() {
     const supabase = await createClient();
@@ -10,12 +11,15 @@ async function OrdersData() {
 
 export default function AdminPage() {
     return (
-        <div className="flex flex-col items-center justify-center p-10">
-            <h1 className="text-2xl font-bold mb-4">Admin Page</h1>
-            <p className="mb-4">This page is for admin users only.</p>
-        <Suspense fallback={<div>Loading...</div>}>
-            <OrdersData />
-        </Suspense>
-        </div>
+        <PageShell>
+            <div className="flex flex-col items-center justify-center p-10">
+                <h1 className="text-2xl font-bold mb-4">Admin Page</h1>
+                <p className="mb-4">This page is for admin users only.</p>
+            <Suspense fallback={<div>Loading...</div>}>
+                <OrdersData />
+            </Suspense>
+            </div>
+        </PageShell>
+        
     );
 }
