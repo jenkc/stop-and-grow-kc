@@ -28,8 +28,7 @@
   --rule: 1px;
   --grain: .055;
 
-  /* Structure. Borders are for legibility now, not decoration — cards and
-     sections separate with whitespace and background tint instead of rules. */
+  /* Structure. Borders are for legibility now, not decoration — cards and sections separate with whitespace and background tint instead of rules. */
   --line: #C9C2B0;          /* hairline: a soft warm grey, not near-black */
   --line-strong: #0B0A0C;   /* only where a real edge is needed */
   --rule: 1px;
@@ -71,7 +70,7 @@
   --border: var(--line);
   --input: var(--line-mid);
   --ring: var(--riso-cyan);
-  --radius: 0.5rem;
+  --radius: 0;
   /* Raleway carries all UI text; DM Mono the figures. Fraunces is back as a
   soloist — h1 only, one per page. Her wordmark is a Cooper/Windsor and
   Raleway echoes nothing in it, which left the wordmark an orphan. */

@@ -32,10 +32,12 @@ export default function Home() {
           <Button size="lg" nativeButton={false} 
           render={<Link href="/Login">Log In</Link>}
           />
-          <Button size="lg" nativeButton={false} 
+          <Button disabled className="bg-muted-foreground"  size="lg" nativeButton={false} 
           render={<Link href="/Signup">Sign Up</Link>}
           />
         </div>
+
+        <Link href="/Guest">Sign in as guest.</Link>
 
         <div className="flex flex-col items-center gap-4 p-5">
           <p className="text-sm text-muted-foreground">

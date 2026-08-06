@@ -1,25 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
-import { Suspense } from "react";
 import { PageShell } from "@/components/page-shell";
+import { redirect } from "next/navigation";
 
-async function OrdersData() {
+export default async function Admin() {
     const supabase = await createClient();
-    const { data: orders } = await supabase.from("orders").select();
+    const { data, error } = await supabase.rpc("is_admin");
+    if (error || !data) redirect('/')
 
-    return <pre>{JSON.stringify(orders, null, 2)}</pre>;
-}
-
-export default function AdminPage() {
     return (
         <PageShell>
             <div className="flex flex-col items-center justify-center p-10">
                 <h1 className="text-2xl font-bold mb-4">Admin Page</h1>
                 <p className="mb-4">This page is for admin users only.</p>
-            <Suspense fallback={<div>Loading...</div>}>
-                <OrdersData />
-            </Suspense>
             </div>
         </PageShell>
-        
     );
 }

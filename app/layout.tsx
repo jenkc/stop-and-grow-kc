@@ -79,7 +79,7 @@ export default function RootLayout({
               <Link href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
                 <Image src="/facebook.png" alt="Facebook link" width={30} height={30} />
               </Link>
-              <Link href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">
+              <Link href="https://www.instagram.com/stopandgrowkc/" target="_blank" rel="noopener noreferrer">
                 <Image src="/instagram.png" alt="Instagram link" width={30} height={30} />
               </Link>        
               <Link href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">
