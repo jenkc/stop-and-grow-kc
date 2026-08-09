@@ -49,19 +49,9 @@ begin
 end;
 $function$;
 
--- Called from inside RLS policies, so `authenticated` must retain EXECUTE.
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path to 'public'
-as $function$
-  select exists (
-    select 1 from customers
-    where auth_id = auth.uid() and is_admin
-  );
-$function$;
+-- NOTE: public.is_admin() is deliberately NOT defined here with the other
+-- functions — it is defined further down, after the tables. See the comment at
+-- its definition for why.
 
 -- Belt-and-braces: any table created in `public` gets RLS turned on automatically.
 create or replace function public.rls_auto_enable()
@@ -240,6 +230,36 @@ create table public.purchases (
   notes           text,
   created_at      timestamptz not null default now()
 );
+
+-- ============================================================
+-- Functions that depend on the tables above
+-- ============================================================
+
+-- Defined here, not up with the other functions, because this body queries
+-- public.customers. `language sql` bodies are validated at creation time
+-- (check_function_bodies is on by default), so declaring it before that table
+-- exists aborts with "relation customers does not exist" — invisible on an
+-- already-built database, but it breaks every from-scratch `db reset`.
+--
+-- Called from inside RLS policies, so `authenticated` must retain EXECUTE.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $function$
+  select exists (
+    select 1 from customers
+    where auth_id = auth.uid() and is_admin
+  );
+$function$;
+
+-- `create or replace function` resets the ACL, which re-grants EXECUTE to
+-- PUBLIC (and anon inherits it). Keep this pair immediately after every
+-- definition of is_admin() — see 20260803180000_is_admin_public_grant_regression.
+revoke execute on function public.is_admin() from public;
+grant  execute on function public.is_admin() to authenticated;
 
 -- ============================================================
 -- Indexes

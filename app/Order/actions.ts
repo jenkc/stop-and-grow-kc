@@ -3,11 +3,29 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export type OrderState = { error?: string }
 
 const MAX_QUANTITY = 20
 
+/**
+ * Place an order. Guest and signed-in checkout both land here.
+ *
+ * Two clients, deliberately:
+ *
+ *   `supabase` (session)  — reads only. Who the caller is, and the catalog.
+ *   `admin` (service-role) — the writes.
+ *
+ * No client-facing role can INSERT into orders: the publishable key ships to
+ * every browser, and any policy permitting a client INSERT permits a
+ * client-chosen price (a WITH CHECK cannot help — the client controls every
+ * column it sends). So the order row is written by the service role, after this
+ * function has validated it. See 20260806140000_orders_server_only_writes.sql.
+ *
+ * Because the admin client bypasses RLS, nothing below may take identity from
+ * the form. `customerId` is derived from the session and only from the session.
+ */
 export async function placeOrder(
   _prev: unknown,
   formData: FormData,
@@ -47,7 +65,8 @@ export async function placeOrder(
 
   // A signed-in order is attached to the customer row the auth trigger created.
   // A guest order carries contact details on the order itself and leaves
-  // customer_id null — both shapes are allowed by orders_insert_own.
+  // customer_id null. Read from the session client, not the admin one — this is
+  // the only thing establishing who the caller is.
   const { data: claims } = await supabase.auth.getClaims()
   const authId = claims?.claims?.sub ?? null
 
@@ -69,9 +88,7 @@ export async function placeOrder(
     return { error: 'Delivery orders need a street address.' }
   }
 
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
+  const orderRow = {
       customer_id: customerId,
       contact_name: contactName,
       contact_email: str('custEmail') || null,
@@ -86,15 +103,42 @@ export async function placeOrder(
       subtotal_cents: subtotalCents,
       delivery_fee_cents: deliveryFeeCents,
       total_cents: subtotalCents + deliveryFeeCents,
-    })
+  }
+
+  // Stamped from the session, never the form. Derived from customerId rather
+  // than authId: someone signed in whose customers row is missing places an
+  // order that behaves like a guest order, and should be counted as one.
+  const checkoutMethod = customerId ? 'account' : 'guest'
+
+  // From here on: writes. Everything above was validation against the session
+  // client, so this is the first use of the RLS-bypassing role.
+  const admin = createAdminClient()
+
+  let { data: order, error: orderError } = await admin
+    .from('orders')
+    .insert({ ...orderRow, checkout_method: checkoutMethod })
     .select('id, order_number')
     .single()
+
+  // PGRST204 = column not in the schema cache, i.e. the checkout_method
+  // migration has not been applied to this project yet. Retry without it so
+  // ordering keeps working; the column's 'guest' default is wrong for an
+  // account order, but a placed order beats a failed one, and the backfill in
+  // the migration is a null-check that will not revisit these rows. Remove
+  // this fallback once the migration is deployed everywhere.
+  if (orderError?.code === 'PGRST204') {
+    ({ data: order, error: orderError } = await admin
+      .from('orders')
+      .insert(orderRow)
+      .select('id, order_number')
+      .single())
+  }
 
   if (orderError || !order) {
     return { error: 'Could not place that order. Please try again.' }
   }
 
-  const { error: itemError } = await supabase.from('order_items').insert({
+  const { error: itemError } = await admin.from('order_items').insert({
     order_id: order.id,
     box_tier_id: tier.id,
     description: tier.name,

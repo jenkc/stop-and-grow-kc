@@ -24,18 +24,22 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
     // looked up from `tiers` so the browser never gets to name its own price.
     const [boxTierId, setBoxTierId] = useState("");
     const [quantity, setQuantity] = useState(0);
+    const [entrySource, setEntrySource] = useState("");
     const [fulfillment, setFulfillment] = useState("");
 
     const selectedTier = tiers.find((t) => t.id === boxTierId);
     const totalPrice = ((selectedTier?.price_cents ?? 0) * quantity) / 100;
     const isDelivery = fulfillment === "delivery";
 
+    // w-full + max-w-xl keeps the form inside the viewport on a phone and stops
+    // it sprawling on a wide monitor. Horizontal padding is responsive rather
+    // than a flat pr-10/pl-10: 40px a side is most of a 375px screen.
     return (
         <form
             action={formAction}
-            className="flex flex-col pr-10 pl-10 flex-1 items-center justify-start font-sans bg-paper"
+            className="flex w-full max-w-xl flex-1 flex-col items-center justify-start bg-paper px-4 font-sans sm:px-10"
         >
-            <div className="space-y-3 pt-3">
+            <div className="w-full space-y-3 pt-3">
                 {/* Form Header */}
                 <h1 className="pt-3 font-bold">Vegetable Box Order Form</h1>
                 <p className="mb-3">
@@ -49,7 +53,20 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         {state.error}
                     </p>
                 )}
-
+                <h2>Customer Information</h2>
+                <Field>
+                    <FieldLabel htmlFor="entrySource">
+                       Please tell us how you heard about Stop and Grow KC! (optional)
+                    </FieldLabel>
+                    <Input
+                        type="text"
+                        id="entrySource"
+                        name="entrySource"
+                        value={entrySource}
+                        onChange={(e) => setEntrySource(e.target.value)}
+                        placeholder="Enter source (optional)"
+                    />
+                </Field>
                 {/* Customer Information Fields */}
                 <Field>
                     <FieldLabel htmlFor="custName">Name</FieldLabel>
@@ -164,7 +181,10 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                             />
                         </Field>
 
-                        <div className="flex flex-row flex-wrap">
+                        {/* Grid rather than flex-wrap: the three fields have no
+                            width basis of their own, so wrapping left them
+                            squeezed at narrow widths. Stacks on a phone. */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <Field>
                                 <FieldLabel htmlFor="city">City</FieldLabel>
                                 <Input type="text" id="city" name="city" placeholder="City" />
@@ -207,7 +227,7 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                 )}
 
                 {/* Total Price Display and Submit Button */}
-                <div className="mr-5 ml-5 flex flex-col items-end justify-end">
+                <div className="flex flex-col items-end justify-end">
                     <label className="flex pt-1">Total Price:</label>
                     <p className="flex mt-1.25 pt-1.25 mb-3 appearance-none rounded-md py-1.5 pr-3 pl-4 outline-gray-300 focus:outline-2 focus:-outline-offset-2">
                         ${totalPrice.toFixed(2)}

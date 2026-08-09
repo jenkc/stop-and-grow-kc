@@ -42,7 +42,11 @@ export async function signup(
       // Read by the A2 trigger to fill customers.name. Display only —
       // never trust this for authorization.
       data: { name: String(formData.get('name') ?? '').trim() },
-      emailRedirectTo: `${siteUrl}/auth/confirm`,
+      // Points at the interstitial, not /auth/confirm directly. Mail scanners
+      // fetch every link in an incoming message, which would spend the
+      // single-use token before the recipient clicks it. The interstitial
+      // renders a button instead, so only a real click confirms.
+      emailRedirectTo: `${siteUrl}/auth/confirm-start`,
     },
   })
 

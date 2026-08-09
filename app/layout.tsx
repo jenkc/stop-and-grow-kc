@@ -1,16 +1,27 @@
 import type { Metadata } from "next";
 import { Raleway, DM_Mono, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthNav, AuthNavFallback } from "@/components/auth-nav";
 
 const fraunces = Fraunces({
   subsets:['latin'],
   variable: '--font-fraunces',
   axes: ["SOFT", "WONK", "opsz"]
+});
+
+// The display face for headings. `swap` means text paints in the fallback
+// immediately rather than sitting invisible while the .otf loads.
+const brightDemo = localFont({
+  src: './fonts/bright-demo.otf',
+  variable: '--font-bright',
+  display: 'swap',
 });
 
 const raleway = Raleway({subsets:['latin'],variable:'--font-raleway'});
@@ -35,7 +46,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("h-full", "antialiased", raleway.variable, dmMono.variable, fraunces.variable)}
+      className={cn("h-full", "antialiased", raleway.variable, dmMono.variable, fraunces.variable, brightDemo.variable)}
     > 
       <body className="min-h-full flex flex-col">
         <ThemeProvider 
@@ -46,7 +57,7 @@ export default function RootLayout({
         >
           <div className="grain" aria-hidden="true" />
           
-          <header className="flex justify-between">
+          <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <Link
               href={`/`}
               className="flex items-center gap-2.5">
@@ -68,7 +79,18 @@ export default function RootLayout({
               priority
               />
             </Link>
-            <ThemeToggle />
+
+            {/* gap-1, not gap-4: these are ghost Buttons carrying their own
+                px, so a wide gap reads as a scattered row rather than one nav
+                cluster. */}
+            <nav className="flex items-center gap-1">
+              {/* Only this subtree awaits cookies(); the logo, footer, and page
+                  content render without waiting on Supabase. */}
+              <Suspense fallback={<AuthNavFallback />}>
+                <AuthNav />
+              </Suspense>
+              <ThemeToggle />
+            </nav>
           </header>
 
           {children}

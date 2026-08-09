@@ -29,7 +29,7 @@ export function LoginForm( { next }: { next: string }) {
                 />
             </Field>
 
-            <Field>
+            <Field className="mb-4">
                 <FieldLabel htmlFor="password">Password</FieldLabel>
                 <Input
                     type="password"
@@ -50,13 +50,17 @@ export function LoginForm( { next }: { next: string }) {
             </Button>
         </FieldGroup>
 
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
             No account yet?{' '}
             <Link href="/Signup" className="underline">
                 Sign up
             </Link>
             .
         </p>
+        <p className="text-sm mt-2 text-muted-foreground">
+            Or, skip sign in and{' '}<Link href='/Order' className="underline">order as a guest</Link>.
+        </p>
+       
     </form>
   )
 }

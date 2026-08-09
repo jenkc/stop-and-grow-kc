@@ -71,12 +71,12 @@
   --input: var(--line-mid);
   --ring: var(--riso-cyan);
   --radius: 0;
-  /* Raleway carries all UI text; DM Mono the figures. Fraunces is back as a
-  soloist — h1 only, one per page. Her wordmark is a Cooper/Windsor and
-  Raleway echoes nothing in it, which left the wordmark an orphan. */
+  /* Raleway carries all UI text; DM Mono the figures. Bright Demo is the
+  display face for headings — it echoes the Cooper/Windsor wordmark, which
+  Raleway alone left an orphan. Fraunces stays defined as a fallback. */
   --font-sans: var(--font-raleway);
   --font-mono: var(--font-dm-mono);
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-bright), var(--font-fraunces);
 }
 
 /* This block is what turns a variable into a utility class.
@@ -187,26 +187,37 @@
     font-size: 0.9375rem;   /* 15px */
   }
 
-  /* Sentence case, weight 700, normal tracking. The earlier uppercase Archivo Black 900 with tight letter-spacing was the main source of shoutiness — this is the calmer replacement. */
+  /* Sentence case, normal tracking. The earlier uppercase Archivo Black 900
+     with tight letter-spacing was the main source of shoutiness — this is the
+     calmer replacement.
+
+     Bright Demo carries the headings: it already has the Cooper-ish warmth the
+     wordmark wants. No variable-axis tuning here — the .otf is a static face
+     and would ignore it. font-weight stays normal so the browser does not
+     synthesise a fake bold from a face that has no bold cut. */
   h1, h2, h3, h4 {
-    font-family: var(--font-sans);
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-weight: 400;
     line-height: 1.15;
     text-wrap: balance;
   }
 
-  /* Fraunces is a soloist, not a section. One h1 per page — the page's
-      single big question. Using it on every heading is what made the
-      earlier system shout. WONK 1 splays the terminals, SOFT 60 rounds
-      the corners: as close as a variable font gets to Cooper's warmth. */
+  /* Airy tracking, echoing the wordmark's generous letterfit. These were
+     negative (-0.015em/-0.01em) for Fraunces, which pulled the letters
+     together — the opposite of what Bright Demo wants.
+
+     Headings stay on one row wherever they fit; `text-wrap: balance` (set on
+     the group above) handles the few that cannot. nowrap was tempting but
+     "Vegetable Box Order Form" at 32px + tracking is ~445px wide, which
+     overflows a 375px phone and pushes the whole page sideways. */
   h1 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-variation-settings: "SOFT" 60, "WONK" 1, "opsz" 72;
     font-size: clamp(2rem, 5vw, 3.25rem);
-    letter-spacing: -0.015em;
+    letter-spacing: 0.06em;
   }
-  h2 { font-size: clamp(1.5rem, 3.5vw, 2.25rem); letter-spacing: -0.01em; }
+  h2 {
+    font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+    letter-spacing: 0.05em;
+  }
   h3 { font-size: 1.25rem; }
   h4 { font-size: 1.05rem; }
 
