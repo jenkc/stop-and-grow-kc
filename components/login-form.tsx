@@ -6,17 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 
-export function LoginForm( { next }: { next: string }) {
+export function LoginForm( { next }: { next?: string }) {
   const [ state, formAction, pending ] = useActionState(login, null)
 
   return (
     <form action={formAction} className="w-full max-w-sm">
         <h1 className="mb-6 text-3xl">Log in</h1>
-        <input
-            type="hidden"
-            name="next"
-            value={next}
-        />
+        {/* Omitted entirely when there is no requested destination — an empty
+            string would still submit the field, and the action needs to tell
+            "go here" apart from "no preference". */}
+        {next ? (
+            <input
+                type="hidden"
+                name="next"
+                value={next}
+            />
+        ) : null}
         <FieldGroup>
             <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

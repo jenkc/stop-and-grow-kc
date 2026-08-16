@@ -25,7 +25,11 @@ export default async function Login({
                     The link you clicked has expired or was already used. Log in, or sign up again.
                 </p>
             )}
-            <LoginForm next={next ?? '/Order'} />
+            {/* Deliberately not defaulted. An absent `next` has to reach the
+                action as absent, so it can send admins to /Admin and everyone
+                else to /Order. Substituting a default here would make every
+                login look like an explicit request for that path. */}
+            <LoginForm next={next} />
         </PageShell>
     )
 }
