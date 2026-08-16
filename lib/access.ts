@@ -1,9 +1,7 @@
 import 'server-only'
-import { headers } from 'next/headers'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { createClient } from '@/lib/supabase/server'
 
-/**
+/*
  * Who is allowed to see /Admin.
  *
  * Two strategies behind one function, because the deployment target is moving.
@@ -32,52 +30,12 @@ import { createClient } from '@/lib/supabase/server'
  * away and is_admin becomes the single source of truth.
  */
 
-const TEAM_DOMAIN = 'https://stopandgrowkc.cloudflareaccess.com'
 
-/**
- * Hoisted on purpose. createRemoteJWKSet caches the key set and handles the
- * six-week rotation; building it per request would refetch every time.
- */
-const JWKS = createRemoteJWKSet(new URL(`${TEAM_DOMAIN}/cdn-cgi/access/certs`))
-
-/**
+/*
  * Email of the current admin, or null. Never throws — a failure here is a
  * redirect, not a 500.
  */
 export async function getAdminEmail(): Promise<string | null> {
-  const h = await headers()
-  const token = h.get('cf-access-jwt-assertion')
-
-  // 1. Cloudflare Access. The aud tag pins verification to THIS application —
-  //    without it a token minted for any other app in the account would verify
-  //    here, so an unset CF_ACCESS_AUD means we skip the strategy rather than
-  //    run a check that only looks like one.
-  const aud = process.env.CF_ACCESS_AUD
-  if (token && aud) {
-    try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: TEAM_DOMAIN,
-        audience: aud,
-      })
-
-      const email = payload.email
-      if (typeof email !== 'string' || !email) {
-        console.error('[access] verified token carried no email claim')
-        return null
-      }
-
-      return email.toLowerCase()
-    } catch (err) {
-      // Present but bad. Do NOT fall through to the Supabase check.
-      console.error('[access] JWT rejected:', err)
-      return null
-    }
-  }
-
-  if (token && !aud) {
-    console.warn('[access] CF_ACCESS_AUD unset — ignoring Access header')
-    return null
-  }
 
   // 2. No Access header. Either local development or a future Vercel
   //    deployment. proxy.ts has already established there is a session by the
