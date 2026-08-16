@@ -8,12 +8,27 @@ import { headers } from 'next/headers'
  *
  * `localhost` and `127.0.0.1` are NOT interchangeable to Supabase's redirect
  * allowlist. Both are listed here and both belong in the dashboard.
+ *
+ * EXTRA_ALLOWED_HOSTS exists for the Vercel move: a deploy is reachable at its
+ * own *.vercel.app hostname before DNS points at it, and a signup started there
+ * would otherwise build its confirmation link from PRODUCTION_FALLBACK — a
+ * domain that may still be pointing at the old origin mid-cutover, which is how
+ * a confirmation email leads nowhere and an admin cannot finish signing up.
+ *
+ * Comma-separated, host[:port] only — no scheme, no path. Setting it is
+ * deliberate: it stays an allowlist, and an unset var changes nothing. Whatever
+ * goes here must ALSO be added to Supabase's own redirect allowlist, or the
+ * link is rejected at their end instead of ours.
  */
 const ALLOWED_HOSTS = new Set([
   'localhost:3000',
   '127.0.0.1:3000',
   'stopandgrowkc.org',
   'www.stopandgrowkc.org',
+  ...(process.env.EXTRA_ALLOWED_HOSTS ?? '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
 ])
 
 /** Last resort when no header matches and the env var is unset. */

@@ -343,6 +343,35 @@
     background: #fff;
     color: #000;
   }
+
+  /* The runsheet is a screen first — Scraps works from a phone in the van —
+     but she prints it some weeks, so the printed sheet has to be a usable
+     document rather than a screenshot of an app.
+
+     The global chrome goes: the site header and footer wrap every page from
+     app/layout.tsx and would otherwise eat the top third of page one. */
+  body > header,
+  body > footer {
+    display: none !important;
+  }
+
+  /* Chips are color-coded on screen. On a mono printer the tint disappears and
+     "Paid"/"Unpaid" become identical, so give them an edge to read against. */
+  .chip {
+    border: 1px solid #000;
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  /* A stop split across a page break is a stop that gets missed. */
+  li {
+    break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
 }
 
 /* Respect reduced-motion: kill the grain flicker, keep the texture. */

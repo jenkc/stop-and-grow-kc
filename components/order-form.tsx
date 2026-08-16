@@ -4,7 +4,10 @@ import { useActionState, useState } from "react";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { placeOrder, type OrderState } from "@/app/Order/actions";
+import { formatCents } from "@/lib/pricing";
+import { LIMITS, formatPhoneInput } from "@/lib/validation";
 
 export type BoxTier = {
     id: string;
@@ -12,9 +15,23 @@ export type BoxTier = {
     price_cents: number;
 };
 
-const QUANTITIES = [1, 2, 3, 4, 5, 6];
+export type OrderWindow = {
+    id: string;
+    kind: "pickup" | "delivery";
+    label: string;
+    starts_at: string;
+};
 
-export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
+// Schema allows 20. A church ordering 12 should not be stopped by a dropdown.
+const QUANTITIES = Array.from({ length: 20 }, (_, i) => i + 1);
+
+export function OrderForm({
+    tiers,
+    windows,
+}: {
+    tiers: BoxTier[];
+    windows: OrderWindow[];
+}) {
     const [state, formAction, pending] = useActionState<OrderState, FormData>(
         placeOrder,
         {},
@@ -26,10 +43,24 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
     const [quantity, setQuantity] = useState(0);
     const [entrySource, setEntrySource] = useState("");
     const [fulfillment, setFulfillment] = useState("");
+    const [phone, setPhone] = useState("");
+
+    // Reformat as they type, except while deleting. Without the delete check,
+    // backspacing "(816) " to "(816" re-adds the ")" the formatter just removed
+    // and the caret can never get past it.
+    function onPhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const next = e.target.value;
+        const deleting = next.length < phone.length;
+        setPhone(deleting ? next : formatPhoneInput(next));
+    }
 
     const selectedTier = tiers.find((t) => t.id === boxTierId);
-    const totalPrice = ((selectedTier?.price_cents ?? 0) * quantity) / 100;
+    const totalCents = (selectedTier?.price_cents ?? 0) * quantity;
     const isDelivery = fulfillment === "delivery";
+
+    // Pickup and delivery have different times on the same day, so the list has
+    // to follow the choice above it rather than showing everything.
+    const availableWindows = windows.filter((w) => w.kind === fulfillment);
 
     // w-full + max-w-xl keeps the form inside the viewport on a phone and stops
     // it sprawling on a wide monitor. Horizontal padding is responsive rather
@@ -64,9 +95,28 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         name="entrySource"
                         value={entrySource}
                         onChange={(e) => setEntrySource(e.target.value)}
-                        placeholder="Enter source (optional)"
+                        maxLength={LIMITS.name}
+                        placeholder="A friend, farmers market, Instagram…"
                     />
                 </Field>
+                {/* Honeypot. Hidden from people, filled by bots that complete every
+                    input — placeOrder() drops the submission when it has a value.
+                    Matches the /Contact implementation: positioned off-screen rather
+                    than `display: none`, since some bots skip what they can tell is
+                    hidden, and aria-hidden + tabIndex keep it away from screen
+                    readers and the tab order. autoComplete="off" stops a password
+                    manager filling it and flagging a real customer as a bot. */}
+                <div className="absolute left-[-9999px]" aria-hidden="true">
+                    <label htmlFor="website">Leave this field empty</label>
+                    <input
+                        id="website"
+                        name="website"
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                    />
+                </div>
+
                 {/* Customer Information Fields */}
                 <Field>
                     <FieldLabel htmlFor="custName">Name</FieldLabel>
@@ -75,6 +125,8 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         id="custName"
                         name="custName"
                         required
+                        maxLength={LIMITS.name}
+                        autoComplete="name"
                         placeholder="Enter your name"
                     />
                 </Field>
@@ -85,6 +137,8 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         type="email"
                         id="custEmail"
                         name="custEmail"
+                        maxLength={LIMITS.email}
+                        autoComplete="email"
                         placeholder="Enter your email"
                     />
                 </Field>
@@ -95,7 +149,12 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         type="tel"
                         id="custPhone"
                         name="custPhone"
-                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={onPhoneChange}
+                        maxLength={LIMITS.phone}
+                        autoComplete="tel"
+                        inputMode="tel"
+                        placeholder="(816) 555-0142"
                     />
                 </Field>
 
@@ -160,6 +219,11 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                     <>
                         <h2 className="block pt-1.25 mb-2 font-bold">Delivery Address:</h2>
 
+                        {/* city / state / zip are `required` because the database
+                            constraint orders_delivery_needs_address demands all
+                            of them for a delivery. Without these attributes the
+                            first sign of a missing city was a failed insert
+                            reported as "Could not place that order." */}
                         <Field>
                             <FieldLabel htmlFor="streetAddress">Street Address</FieldLabel>
                             <Input
@@ -167,6 +231,8 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                                 id="streetAddress"
                                 name="streetAddress"
                                 required
+                                maxLength={LIMITS.street}
+                                autoComplete="address-line1"
                                 placeholder="Enter your delivery address"
                             />
                         </Field>
@@ -177,6 +243,8 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                                 type="text"
                                 id="aptSuite"
                                 name="aptSuite"
+                                maxLength={LIMITS.apt}
+                                autoComplete="address-line2"
                                 placeholder="Apt 4B"
                             />
                         </Field>
@@ -187,12 +255,20 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <Field>
                                 <FieldLabel htmlFor="city">City</FieldLabel>
-                                <Input type="text" id="city" name="city" placeholder="City" />
+                                <Input
+                                    type="text"
+                                    id="city"
+                                    name="city"
+                                    required
+                                    maxLength={LIMITS.city}
+                                    autoComplete="address-level2"
+                                    placeholder="City"
+                                />
                             </Field>
 
                             <Field>
                                 <FieldLabel htmlFor="state">State</FieldLabel>
-                                <NativeSelect id="state" name="state">
+                                <NativeSelect id="state" name="state" required>
                                     <option value="">Select...</option>
                                     <option value="KS">Kansas</option>
                                     <option value="MO">Missouri</option>
@@ -208,39 +284,79 @@ export function OrderForm({ tiers }: { tiers: BoxTier[] }) {
                                 type="text"
                                 id="zipCode"
                                 name="zipCode"
-                                placeholder="Enter your zip code"
+                                required
+                                inputMode="numeric"
+                                maxLength={10}
+                                autoComplete="postal-code"
+                                placeholder="64111"
                             />
-                        </Field>
-
-                        <Field>
-                            <FieldLabel htmlFor="timeWindow">
-                                Select Delivery Time Window...
-                            </FieldLabel>
-                            <NativeSelect id="timeWindow" name="timeWindow">
-                                <option value="">Select One...</option>
-                                <option value="morning">Morning (8:00 AM - 12:00 PM)</option>
-                                <option value="afternoon">Afternoon (12:00 PM - 5:00 PM)</option>
-                                <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
-                            </NativeSelect>
                         </Field>
                     </>
                 )}
 
-                {/* Total Price Display and Submit Button */}
-                <div className="flex flex-col items-end justify-end">
-                    <label className="flex pt-1">Total Price:</label>
-                    <p className="flex mt-1.25 pt-1.25 mb-3 appearance-none rounded-md py-1.5 pr-3 pl-4 outline-gray-300 focus:outline-2 focus:-outline-offset-2">
-                        ${totalPrice.toFixed(2)}
-                    </p>
-                </div>
+                {/* Times come from delivery_windows for the open cycle, so they
+                    are whatever Scraps set this week. Shown for pickup as well
+                    as delivery — both have times, and they differ. */}
+                {fulfillment && (
+                    <Field>
+                        <FieldLabel htmlFor="windowId">
+                            {isDelivery ? "Delivery time" : "Pickup time"}
+                        </FieldLabel>
+                        {availableWindows.length > 0 ? (
+                            <NativeSelect id="windowId" name="windowId" required>
+                                <option value="">Select a time…</option>
+                                {availableWindows.map((w) => (
+                                    <option key={w.id} value={w.id}>
+                                        {w.label}
+                                    </option>
+                                ))}
+                            </NativeSelect>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No {isDelivery ? "delivery" : "pickup"} times are available
+                                this week. Try the other option.
+                            </p>
+                        )}
+                    </Field>
+                )}
 
-                <button
-                    type="submit"
-                    disabled={pending}
-                    className="h-12 mx-auto flex items-center bg-primary justify-center mt-5 whitespace-nowrap rounded-b-md px-5 transition-colors hover:bg-[#383838] disabled:opacity-60 dark:hover:bg-[#ccc]"
-                >
-                    {pending ? "Placing order…" : "Go to Checkout"}
-                </button>
+                <Field>
+                    <FieldLabel htmlFor="dietaryNotes">
+                        Anything you don&rsquo;t eat?
+                    </FieldLabel>
+                    <Textarea
+                        id="dietaryNotes"
+                        name="dietaryNotes"
+                        rows={2}
+                        maxLength={LIMITS.notes}
+                        placeholder="No celery or beets"
+                    />
+                </Field>
+
+                {/* Spacer so the sticky bar never covers the last field. */}
+                <div aria-hidden className="h-24" />
+            </div>
+
+            {/* The total and the submit travel together at the bottom of the
+                viewport. Previously the total sat mid-page and scrolled out of
+                sight on a phone, so the amount was invisible at the moment of
+                deciding — which is the one moment it matters. */}
+            <div className="sticky bottom-0 z-10 -mx-4 mt-auto w-[calc(100%+2rem)] border-t border-border bg-paper/95 px-4 py-3 backdrop-blur sm:-mx-10 sm:w-[calc(100%+5rem)] sm:px-10">
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p aria-live="polite" className="text-2xl font-bold tabular-nums">
+                            {formatCents(totalCents)}
+                        </p>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={pending}
+                        className="flex h-12 min-w-40 items-center justify-center whitespace-nowrap rounded-md bg-primary px-5 text-primary-foreground transition-colors hover:bg-[#383838] disabled:opacity-60 dark:hover:bg-[#ccc]"
+                    >
+                        {pending ? "Placing order…" : "Place order"}
+                    </button>
+                </div>
             </div>
         </form>
     );

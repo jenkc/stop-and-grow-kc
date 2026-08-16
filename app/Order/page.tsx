@@ -1,6 +1,7 @@
 import { PageShell } from "@/components/page-shell";
-import { OrderForm, type BoxTier } from "@/components/order-form";
+import { OrderForm, type BoxTier, type OrderWindow } from "@/components/order-form";
 import { createClient } from "@/lib/supabase/server";
+import { getOrderingCycle, closedMessage } from "@/lib/cycle";
 
 export default async function Order({
     searchParams,
@@ -19,6 +20,8 @@ export default async function Order({
 
     const tiers: BoxTier[] = data ?? [];
 
+    const gate = await getOrderingCycle();
+
     // After placeOrder() succeeds it redirects back here with the order number.
     if (placed) {
         return (
@@ -34,6 +37,32 @@ export default async function Order({
         );
     }
 
+    // Ordering closed: show why instead of a form that would only be rejected.
+    // placeOrder() runs this same check, so this is presentation, not the gate.
+    if (!gate.open) {
+        return (
+            <PageShell>
+                <div className="w-full max-w-md py-16 text-center">
+                    <h1 className="mb-4 text-3xl">Ordering is closed</h1>
+                    <p className="text-muted-foreground">
+                        {closedMessage(gate.reason)}
+                    </p>
+                </div>
+            </PageShell>
+        );
+    }
+
+    // Windows for the open cycle. RLS (delivery_windows_public_read) already
+    // limits these to open cycles, so a signed-out visitor sees exactly the
+    // times they are allowed to book.
+    const { data: windowRows } = await supabase
+        .from("delivery_windows")
+        .select("id, kind, label, starts_at")
+        .eq("cycle_id", gate.cycle.id)
+        .order("starts_at");
+
+    const windows: OrderWindow[] = windowRows ?? [];
+
     return (
         <PageShell>
             {confirmed && (
@@ -47,7 +76,7 @@ export default async function Order({
                     </p>
                 </div>
             )}
-            <OrderForm tiers={tiers} />
+            <OrderForm tiers={tiers} windows={windows} />
         </PageShell>
     );
 }

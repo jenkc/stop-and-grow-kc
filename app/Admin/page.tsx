@@ -1,18 +1,202 @@
-import { createClient } from "@/lib/supabase/server";
-import { PageShell } from "@/components/page-shell";
-import { redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { Chip } from "@/components/ui/chip";
+import { formatCents } from "@/lib/pricing";
+
+/**
+ * Every order for the current week, pickup and delivery together.
+ *
+ * The runsheet is the delivery-day tool; this is the "what is going on" view.
+ * On a phone each order is a card, because a seven-column table on a 390px
+ * screen is a pinch-and-scroll puzzle. The table shape appears at sm and up,
+ * where it genuinely reads better.
+ */
+
+export const dynamic = "force-dynamic";
+
+type Row = {
+  id: string;
+  order_number: string;
+  contact_name: string;
+  contact_phone: string | null;
+  fulfillment: string;
+  status: string;
+  payment_status: string;
+  total_cents: number;
+  dietary_notes: string | null;
+  window_id: string | null;
+};
 
 export default async function Admin() {
-    const supabase = await createClient();
-    const { data, error } = await supabase.rpc("is_admin");
-    if (error || !data) redirect('/')
+  const admin = createAdminClient();
 
-    return (
-        <PageShell>
-            <div className="flex flex-col items-center justify-center p-10">
-                <h1 className="text-2xl font-bold mb-4">Admin Page</h1>
-                <p className="mb-4">This page is for admin users only.</p>
-            </div>
-        </PageShell>
-    );
+  const { data: orders } = await admin
+    .from("orders")
+    .select(
+      "id, order_number, contact_name, contact_phone, fulfillment, status, payment_status, total_cents, dietary_notes, window_id",
+    )
+    .order("placed_at", { ascending: false });
+
+  const { data: windows } = await admin
+    .from("delivery_windows")
+    .select("id, label");
+
+  const labelFor = new Map((windows ?? []).map((w) => [w.id, w.label]));
+  const rows = (orders ?? []) as Row[];
+
+  const live = rows.filter((r) => r.status !== "cancelled");
+  const owed = live
+    .filter((r) => r.payment_status !== "paid")
+    .reduce((sum, r) => sum + r.total_cents, 0);
+
+  return (
+    <div className="py-4">
+      <header className="mb-6">
+        <h1 className="font-display text-3xl">Orders</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {live.length} active · {formatCents(owed)} outstanding
+        </p>
+      </header>
+
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-border bg-card px-6 py-12 text-center">
+          <h2 className="font-display text-xl">No orders yet</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Orders appear here as they come in.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Phone: cards. */}
+          <ul className="space-y-3 sm:hidden">
+            {rows.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-lg border border-border bg-card p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold">{r.contact_name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {r.order_number}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-bold tabular-nums">
+                    {formatCents(r.total_cents)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Chip
+                    status={r.fulfillment === "delivery" ? "delivery" : "pickup"}
+                  >
+                    {r.fulfillment}
+                  </Chip>
+                  <Chip status={r.payment_status === "paid" ? "paid" : "unpaid"}>
+                    {r.payment_status === "paid" ? "Paid" : "Unpaid"}
+                  </Chip>
+                  <span className="text-xs text-muted-foreground">
+                    {r.status}
+                  </span>
+                  {r.window_id && (
+                    <span className="text-xs text-muted-foreground">
+                      · {labelFor.get(r.window_id)}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Tablet and up: the table. */}
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line-mid text-left">
+                  <Th>Order</Th>
+                  <Th>Name</Th>
+                  <Th>Type</Th>
+                  <Th>Time</Th>
+                  <Th className="text-right">Total</Th>
+                  <Th>Status</Th>
+                  <Th>Payment</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.id}
+                    className={`border-b border-border ${
+                      r.status === "cancelled" ? "opacity-50" : ""
+                    }`}
+                  >
+                    <Td className="font-mono text-xs">{r.order_number}</Td>
+                    <Td>
+                      <span className="font-medium">{r.contact_name}</span>
+                      {/* The dietary flag rides with the name rather than
+                          getting a column of its own: it is rare, and an empty
+                          column costs width on every row that lacks one. */}
+                      {r.dietary_notes && (
+                        <span
+                          title={r.dietary_notes}
+                          className="ml-2 rounded bg-warn-tint px-1.5 py-0.5 text-xs font-medium"
+                        >
+                          note
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      <Chip
+                        status={
+                          r.fulfillment === "delivery" ? "delivery" : "pickup"
+                        }
+                      >
+                        {r.fulfillment}
+                      </Chip>
+                    </Td>
+                    <Td className="text-muted-foreground">
+                      {r.window_id ? labelFor.get(r.window_id) : "—"}
+                    </Td>
+                    <Td className="text-right font-medium tabular-nums">
+                      {formatCents(r.total_cents)}
+                    </Td>
+                    <Td className="text-muted-foreground">{r.status}</Td>
+                    <Td>
+                      <Chip
+                        status={r.payment_status === "paid" ? "paid" : "unpaid"}
+                      >
+                        {r.payment_status === "paid" ? "Paid" : "Unpaid"}
+                      </Chip>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Th({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th className={`px-2 py-2 font-medium text-muted-foreground ${className}`}>
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <td className={`px-2 py-3 ${className}`}>{children}</td>;
 }

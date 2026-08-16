@@ -111,7 +111,7 @@ export default function RootLayout({
             <div className="flex flex-row gap-4 text-base font-medium sm:flex-column">
               <a href="/HowItWorks">About Us</a>
               <a href="/HowItWorks">How it Works</a>
-              <a href="/HowItWorks">Contact</a>
+              <a href="/Contact">Contact</a>
             </div>
           </footer>
         </ThemeProvider>

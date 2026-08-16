@@ -8,8 +8,6 @@ export default function HowItWorks() {
                 <p className="mb-4">This is the about section.</p>
                 <h1 className="text-2xl font-bold mb-4">How It Works</h1>
                 <p className="mb-4">This is the how it works section.</p>
-                <h1 className="text-2xl font-bold mb-4">Contact</h1>
-                <p className="mb-4">This is the contact section.</p>
             </div>
         </PageShell>
     )

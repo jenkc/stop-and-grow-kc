@@ -4,6 +4,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getOrderingCycle, closedMessage } from '@/lib/cycle'
+import {
+  LIMITS,
+  boundedText,
+  isPlausibleEmail,
+  isPlausiblePhone,
+  isValidState,
+  isValidZip,
+  isBot,
+} from '@/lib/validation'
+import type { Enums } from '@/lib/supabase/database.types'
 
 export type OrderState = { error?: string }
 
@@ -32,15 +43,58 @@ export async function placeOrder(
 ): Promise<OrderState> {
   const supabase = await createClient()
 
+  // The gate. /Order also checks this to decide whether to render the form, but
+  // that is a courtesy — a disabled form still POSTs, so this is the check that
+  // actually closes ordering. Everything below assumes an open cycle exists.
+  const gate = await getOrderingCycle()
+  if (!gate.open) return { error: closedMessage(gate.reason) }
+  const cycle = gate.cycle
+
   const str = (k: string) => String(formData.get(k) ?? '').trim()
 
-  const fulfillment = str('fulfillment')
-  if (fulfillment !== 'pickup' && fulfillment !== 'delivery') {
-    return { error: 'Choose pickup or delivery.' }
+  // Hidden from people, filled by bots. Report success rather than explaining
+  // the check — same treatment as /Contact.
+  if (isBot(str('website'))) {
+    redirect('/Order?placed=received')
   }
 
-  const contactName = str('custName')
-  if (!contactName) return { error: 'Please enter your name.' }
+  const rawFulfillment = str('fulfillment')
+  if (rawFulfillment !== 'pickup' && rawFulfillment !== 'delivery') {
+    return { error: 'Choose pickup or delivery.' }
+  }
+  // Bound to a fresh const so the narrowing survives into orderRow. Reading the
+  // widened `string` straight into the insert fails against fulfillment_kind.
+  const fulfillment: Enums<'fulfillment_kind'> = rawFulfillment
+
+  // Every free-text field is bounded. The columns are `text` with no length
+  // cap, so without this a multi-megabyte dietary note commits — and then
+  // renders on the runsheet Scraps reads in the van.
+  const nameField = boundedText(str('custName'), LIMITS.name, 'Your name', {
+    required: true,
+  })
+  if (!nameField.ok) return { error: nameField.error }
+  const contactName = nameField.value
+
+  const emailField = boundedText(str('custEmail'), LIMITS.email, 'Your email')
+  if (!emailField.ok) return { error: emailField.error }
+  // Optional — a phone-only guest order is legitimate — but if given it has to
+  // be plausible, because order confirmations will be mailed to it.
+  if (emailField.value && !isPlausibleEmail(emailField.value)) {
+    return { error: 'Please enter a valid email address.' }
+  }
+
+  const phoneField = boundedText(str('custPhone'), LIMITS.phone, 'Your phone number')
+  if (!phoneField.ok) return { error: phoneField.error }
+  if (phoneField.value && !isPlausiblePhone(phoneField.value)) {
+    return { error: 'Please enter a valid phone number.' }
+  }
+
+  const notesField = boundedText(str('dietaryNotes'), LIMITS.notes, 'That note')
+  if (!notesField.ok) return { error: notesField.error }
+
+  // "How did you hear about us?" — optional, free text.
+  const sourceField = boundedText(str('entrySource'), LIMITS.name, 'That answer')
+  if (!sourceField.ok) return { error: sourceField.error }
 
   const quantity = Number(formData.get('quantity'))
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
@@ -81,25 +135,89 @@ export async function placeOrder(
   }
 
   const subtotalCents = tier.price_cents * quantity
+
+  // Deliberately 0, including for delivery orders. The $5 delivery fee is a
+  // line item Scraps adds from /Admin when it applies — she waives it at her
+  // discretion, so charging it automatically here would be wrong more often
+  // than it was right. See DELIVERY_FEE_CENTS in lib/pricing.ts.
   const deliveryFeeCents = 0
 
   const isDelivery = fulfillment === 'delivery'
-  if (isDelivery && !str('streetAddress')) {
-    return { error: 'Delivery orders need a street address.' }
+
+  // Checked here rather than left to orders_delivery_needs_address /
+  // orders_ship_state_check / orders_ship_zip_check. Those constraints fire
+  // during the insert, so relying on them turns a fixable typo into "Could not
+  // place that order. Please try again" — advice a visitor cannot act on. The
+  // constraints stay as the backstop; these produce the message.
+  const streetField = boundedText(str('streetAddress'), LIMITS.street, 'Street address', {
+    required: isDelivery,
+    missing: 'a street address',
+  })
+  if (!streetField.ok) return { error: streetField.error }
+
+  const aptField = boundedText(str('aptSuite'), LIMITS.apt, 'Apartment or suite')
+  if (!aptField.ok) return { error: aptField.error }
+
+  const cityField = boundedText(str('city'), LIMITS.city, 'City', {
+    required: isDelivery,
+    missing: 'a city',
+  })
+  if (!cityField.ok) return { error: cityField.error }
+
+  const state = str('state')
+  const zip = str('zipCode')
+
+  if (isDelivery) {
+    if (!state) return { error: 'Please choose a state.' }
+    if (!isValidState(state)) return { error: 'Please choose a valid state.' }
+    if (!zip) return { error: 'Please enter a ZIP code.' }
+    if (!isValidZip(zip)) {
+      return { error: 'Please enter a valid ZIP code, like 64111.' }
+    }
+  }
+
+  // The chosen window is verified against the database, not trusted from the
+  // form: it must exist, belong to THIS cycle, and match the fulfillment kind.
+  // Without the cycle check a stale page could book a window from last week;
+  // without the kind check a delivery order could claim a pickup slot.
+  const windowId = str('windowId')
+  if (!windowId) {
+    return {
+      error: isDelivery
+        ? 'Choose a delivery time window.'
+        : 'Choose a pickup time.',
+    }
+  }
+
+  const { data: window, error: windowError } = await supabase
+    .from('delivery_windows')
+    .select('id, kind, cycle_id')
+    .eq('id', windowId)
+    .eq('cycle_id', cycle.id)
+    .eq('kind', fulfillment)
+    .maybeSingle()
+
+  if (windowError || !window) {
+    return { error: 'That time is no longer available. Please pick another.' }
   }
 
   const orderRow = {
       customer_id: customerId,
       contact_name: contactName,
-      contact_email: str('custEmail') || null,
-      contact_phone: str('custPhone') || null,
+      contact_email: emailField.value || null,
+      contact_phone: phoneField.value || null,
       fulfillment,
-      time_window: isDelivery ? str('timeWindow') || null : null,
-      ship_street: isDelivery ? str('streetAddress') || null : null,
-      ship_apt: isDelivery ? str('aptSuite') || null : null,
-      ship_city: isDelivery ? str('city') || null : null,
-      ship_state: isDelivery ? str('state') || null : null,
-      ship_zip: isDelivery ? str('zipCode') || null : null,
+      window_id: window.id,
+      // Superseded by window_id. Left null rather than removed: the column is
+      // dropped in a later migration, once nothing reads it.
+      time_window: null,
+      dietary_notes: notesField.value || null,
+      entry_source: sourceField.value || null,
+      ship_street: isDelivery ? streetField.value || null : null,
+      ship_apt: isDelivery ? aptField.value || null : null,
+      ship_city: isDelivery ? cityField.value || null : null,
+      ship_state: isDelivery ? state || null : null,
+      ship_zip: isDelivery ? zip || null : null,
       subtotal_cents: subtotalCents,
       delivery_fee_cents: deliveryFeeCents,
       total_cents: subtotalCents + deliveryFeeCents,
@@ -114,40 +232,45 @@ export async function placeOrder(
   // client, so this is the first use of the RLS-bypassing role.
   const admin = createAdminClient()
 
-  let { data: order, error: orderError } = await admin
+  const { data: order, error: orderError } = await admin
     .from('orders')
     .insert({ ...orderRow, checkout_method: checkoutMethod })
     .select('id, order_number')
     .single()
 
-  // PGRST204 = column not in the schema cache, i.e. the checkout_method
-  // migration has not been applied to this project yet. Retry without it so
-  // ordering keeps working; the column's 'guest' default is wrong for an
-  // account order, but a placed order beats a failed one, and the backfill in
-  // the migration is a null-check that will not revisit these rows. Remove
-  // this fallback once the migration is deployed everywhere.
-  if (orderError?.code === 'PGRST204') {
-    ({ data: order, error: orderError } = await admin
-      .from('orders')
-      .insert(orderRow)
-      .select('id, order_number')
-      .single())
-  }
-
   if (orderError || !order) {
     return { error: 'Could not place that order. Please try again.' }
   }
 
-  const { error: itemError } = await admin.from('order_items').insert({
-    order_id: order.id,
-    box_tier_id: tier.id,
-    description: tier.name,
-    quantity,
-    unit_price_cents: tier.price_cents,
-    line_total_cents: subtotalCents,
-  })
+  const { error: itemError } = await admin.from('order_items').insert([
+    {
+      order_id: order.id,
+      box_tier_id: tier.id,
+      description: tier.name,
+      quantity,
+      unit_price_cents: tier.price_cents,
+      line_total_cents: subtotalCents,
+    },
+  ])
 
   if (itemError) {
+    // Roll back by hand. PostgREST gives no cross-request transaction, so a
+    // failure here would otherwise leave a committed order containing nothing —
+    // it would show on the runsheet as a stop with no boxes. Deleting is safe:
+    // this order is one statement old and nothing else can reference it yet.
+    const { error: cleanupError } = await admin
+      .from('orders')
+      .delete()
+      .eq('id', order.id)
+
+    if (cleanupError) {
+      // Now there IS an empty order. Say so loudly — it needs manual removal.
+      console.error(
+        `[order] orphaned order ${order.order_number} (${order.id}): items insert failed and cleanup failed:`,
+        cleanupError,
+      )
+    }
+
     return { error: 'Could not save the order details. Please try again.' }
   }
 
