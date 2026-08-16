@@ -4,30 +4,17 @@ import { createClient } from '@/lib/supabase/server'
 /*
  * Who is allowed to see /Admin.
  *
- * Two strategies behind one function, because the deployment target is moving.
- * Today the site is served through a Cloudflare Tunnel and Cloudflare Access is
- * the outer gate; on Vercel that stops being viable — the origin becomes public,
- * so the *.vercel.app URL would route around Access entirely, and the fixes for
- * that (Authenticated Origin Pull, Trusted IPs) are unavailable on managed hosts
- * or Enterprise-only. Callers depend on getAdminEmail() alone, so that migration
- * is a change to this file and nothing else.
+ * The Supabase session plus the is_admin() RPC — customers.is_admin is the
+ * single source of truth. Cloudflare Access was the outer gate while the site
+ * was served through a tunnel; it was removed when the site moved to Vercel,
+ * where the origin is public and Access could be routed around entirely.
  *
- * Precedence, first match wins:
- *   1. Cloudflare Access JWT present -> verify it, trust its email claim.
- *   2. No Access header at all       -> Supabase session + is_admin().
+ * Callers depend on getAdminEmail() alone, which is why that migration was a
+ * change to this file and nothing else.
  *
- * The asymmetry in (1) is the security-critical part: a header that is *absent*
- * falls through to (2), but a header that is *present and invalid* returns null
- * immediately. The app listens on 127.0.0.1:3000, so anyone who can reach that
- * port can send whatever headers they like. If a bad token fell through, an
- * attacker could strip themselves down to the weaker check by sending garbage.
- * Reject instead.
- *
- * Note this deliberately keeps customers.is_admin as an authorization input, so
- * the Access policy and the database flag are two lists that must be kept in
- * sync by hand (_Documents/GRANT-ADMIN.sql section 3). That is the price of
- * portability and it is temporary — once the tunnel is retired, strategy 1 goes
- * away and is_admin becomes the single source of truth.
+ * This gates RENDERING. Every Server Action re-checks independently — an action
+ * is a public POST endpoint that never passes through the /Admin layout, and all
+ * admin writes use the service role, which bypasses RLS. See app/Admin/actions.ts.
  */
 
 
