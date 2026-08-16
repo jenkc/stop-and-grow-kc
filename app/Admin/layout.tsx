@@ -11,10 +11,15 @@ import { getAdminEmail } from "@/lib/access";
  * is a public POST endpoint that never passes through this layout.
  */
 
+/**
+ * /Admin/New is deliberately absent: it is reached from the "New order" button
+ * on the Orders page, not from here. Taking an order by phone starts from
+ * looking at the week's orders, and the tab row is for the screens she moves
+ * between during a delivery day.
+ */
 const TABS = [
   { href: "/Admin", label: "Orders" },
   { href: "/Admin/Runsheet", label: "Runsheet" },
-  { href: "/Admin/New", label: "New order" },
   { href: "/Admin/Money", label: "Money" },
   { href: "/Admin/Cycle", label: "This week" },
 ];

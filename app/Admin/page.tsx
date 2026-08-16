@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Chip } from "@/components/ui/chip";
+import { buttonVariants } from "@/components/ui/button";
 import { formatCents } from "@/lib/pricing";
+import { cn } from "@/lib/utils";
 
 /**
  * Every order for the current week, pickup and delivery together.
@@ -50,11 +53,19 @@ export default async function Admin() {
 
   return (
     <div className="py-4">
-      <header className="mb-6">
-        <h1 className="font-display text-3xl">Orders</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {live.length} active · {formatCents(owed)} outstanding
-        </p>
+      {/* The button sits with the heading rather than in the tab row: taking an
+          order by phone starts from looking at the week's orders. Wraps to its
+          own line on a narrow phone instead of squeezing the count. */}
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl">Orders</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {live.length} active · {formatCents(owed)} outstanding
+          </p>
+        </div>
+        <Link href="/Admin/New" className={buttonVariants()}>
+          New order
+        </Link>
       </header>
 
       {rows.length === 0 ? (
@@ -63,6 +74,14 @@ export default async function Admin() {
           <p className="mt-2 text-sm text-muted-foreground">
             Orders appear here as they come in.
           </p>
+          {/* Repeated from the header: on an empty week this card is the whole
+              screen, and "add one yourself" is the only useful next move. */}
+          <Link
+            href="/Admin/New"
+            className={cn(buttonVariants({ variant: "outline" }), "mt-6")}
+          >
+            Add one by hand
+          </Link>
         </div>
       ) : (
         <>
