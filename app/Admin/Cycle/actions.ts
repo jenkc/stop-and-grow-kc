@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { getAdminEmail } from '@/lib/access'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { toKcTimestamp } from '@/lib/week'
+import { isWindowTime } from '@/lib/window-times'
 import type { AdminActionState } from '@/app/Admin/actions'
 import type { Enums } from '@/lib/supabase/database.types'
 
@@ -108,15 +110,24 @@ export async function addWindow(
   const cycleId = String(formData.get('cycleId') ?? '')
   const kind = String(formData.get('kind') ?? '')
   const label = String(formData.get('label') ?? '').trim()
-  const startsAt = String(formData.get('startsAt') ?? '')
-  const endsAt = String(formData.get('endsAt') ?? '')
+  const windowDate = String(formData.get('windowDate') ?? '')
+  const startsTime = String(formData.get('startsTime') ?? '')
+  const endsTime = String(formData.get('endsTime') ?? '')
 
   if (kind !== 'pickup' && kind !== 'delivery') {
     return { error: 'Choose pickup or delivery.' }
   }
   if (!label) return { error: 'Give the time a label, like “10:00–12:30pm”.' }
-  if (!startsAt || !endsAt) return { error: 'Set a start and end time.' }
-  if (Date.parse(endsAt) <= Date.parse(startsAt)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(windowDate)) {
+    return { error: 'Pick the day this time is on.' }
+  }
+  // The <select> only offers these, but it posts like any other form — a value
+  // off the list would otherwise become a timestamp nobody chose.
+  if (!isWindowTime(startsTime) || !isWindowTime(endsTime)) {
+    return { error: 'Choose a start and end time.' }
+  }
+  if (endsTime <= startsTime) {
+    // Zero-padded 24-hour strings, so a plain string compare is a clock compare.
     return { error: 'The end time must be after the start time.' }
   }
 
@@ -125,8 +136,8 @@ export async function addWindow(
     cycle_id: cycleId,
     kind,
     label,
-    starts_at: new Date(startsAt).toISOString(),
-    ends_at: new Date(endsAt).toISOString(),
+    starts_at: toKcTimestamp(windowDate, startsTime),
+    ends_at: toKcTimestamp(windowDate, endsTime),
   })
 
   if (error) {

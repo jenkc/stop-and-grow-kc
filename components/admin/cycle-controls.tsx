@@ -8,6 +8,7 @@ import {
   deleteWindow,
 } from "@/app/Admin/Cycle/actions";
 import type { AdminActionState } from "@/app/Admin/actions";
+import { WINDOW_TIMES } from "@/lib/window-times";
 
 /**
  * Setting up the week: create it, add times, open ordering.
@@ -127,7 +128,13 @@ export function CreateCycleForm({
   );
 }
 
-export function AddWindowForm({ cycleId }: { cycleId: string }) {
+export function AddWindowForm({
+  cycleId,
+  defaultWindowDate,
+}: {
+  cycleId: string;
+  defaultWindowDate: string;
+}) {
   const [state, action, pending] = useActionState(addWindow, EMPTY);
 
   return (
@@ -161,24 +168,58 @@ export function AddWindowForm({ cycleId }: { cycleId: string }) {
             className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
           />
         </label>
+        {/* One date for the whole window — a slot that starts on one day and
+            ends on the next is not a thing she runs, and two datetime fields
+            made that possible. Defaults to the Thursday after the shopping
+            Wednesday, the first delivery day. */}
         <label>
-          <span className="mb-1 block text-sm font-medium">Starts</span>
+          <span className="mb-1 block text-sm font-medium">Day</span>
           <input
-            type="datetime-local"
-            name="startsAt"
+            type="date"
+            name="windowDate"
             required
+            defaultValue={defaultWindowDate}
             className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
           />
         </label>
-        <label>
-          <span className="mb-1 block text-sm font-medium">Ends</span>
-          <input
-            type="datetime-local"
-            name="endsAt"
-            required
-            className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label>
+            <span className="mb-1 block text-sm font-medium">Starts</span>
+            <select
+              name="startsTime"
+              required
+              defaultValue=""
+              className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
+            >
+              <option value="" disabled>
+                Time
+              </option>
+              {WINDOW_TIMES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="mb-1 block text-sm font-medium">Ends</span>
+            <select
+              name="endsTime"
+              required
+              defaultValue=""
+              className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
+            >
+              <option value="" disabled>
+                Time
+              </option>
+              {WINDOW_TIMES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <button

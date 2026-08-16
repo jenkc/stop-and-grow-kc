@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { nextWednesday } from "@/lib/week";
+import { dayAfter, nextWednesday } from "@/lib/week";
 import {
   CreateCycleForm,
   AddWindowForm,
@@ -126,7 +126,14 @@ export default async function Cycle() {
         </p>
       )}
 
-      {current && <AddWindowForm cycleId={current.id} />}
+      {current && (
+        <AddWindowForm
+          cycleId={current.id}
+          // Thursday of this cycle's week — the first delivery day, and the one
+          // most windows land on.
+          defaultWindowDate={dayAfter(current.cycle_date)}
+        />
+      )}
 
       {/* force-dynamic above, so this is recomputed per request rather than
           frozen at build time into a Wednesday that goes stale. */}

@@ -43,6 +43,65 @@ function todayInTz(now: Date): string {
  * DST boundary and land on the previous evening. The result is a plain calendar
  * date with no time component, which is what the `date` column stores.
  */
+/**
+ * A Kansas City wall-clock date and time as a UTC ISO timestamp.
+ *
+ * "2026-08-20" + "10:00" means 10am in Kansas City, always. Naively building
+ * `new Date('2026-08-20T10:00')` resolves against the *server's* zone — on
+ * Vercel that is UTC, so the window would land at 5am Central and sort wrong on
+ * the runsheet.
+ *
+ * The offset cannot be hardcoded: Kansas City is UTC-5 in summer and UTC-6 in
+ * winter, and a cycle can be created on either side of a changeover. So the
+ * offset is measured for that specific instant instead. Guessing UTC first is
+ * safe: the correction is derived from what the guess actually formats to in
+ * Chicago, which is exact for both offsets.
+ */
+export function toKcTimestamp(date: string, time: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  const [hh, mm] = time.split(':').map(Number)
+
+  const guess = Date.UTC(y, m - 1, d, hh, mm)
+
+  // What that instant reads as on a Chicago clock.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(guess))
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+  const asChicago = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+  )
+
+  // The gap between them is the offset; add it back to land on the wall clock.
+  return new Date(guess + (guess - asChicago)).toISOString()
+}
+
+/**
+ * The day after a cycle's date — Thursday for a Wednesday week, and the first
+ * of the three delivery days. Used to pre-fill the "Add a time" day field so
+ * the common case needs no date picking at all.
+ *
+ * Takes a plain YYYY-MM-DD and returns one, with no timezone involved: this is
+ * calendar arithmetic on a date the caller already has.
+ */
+export function dayAfter(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  const anchor = new Date(Date.UTC(y, m - 1, d, 12))
+  anchor.setUTCDate(anchor.getUTCDate() + 1)
+  return anchor.toISOString().slice(0, 10)
+}
+
 export function nextWednesday(now: Date = new Date()): string {
   const [y, m, d] = todayInTz(now).split('-').map(Number)
 
