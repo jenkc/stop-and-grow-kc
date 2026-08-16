@@ -68,19 +68,38 @@ export function OpenCloseButtons({
   );
 }
 
-export function CreateCycleForm() {
+/**
+ * `defaultCycleDate` is computed on the server (see lib/week.ts) and passed in
+ * rather than derived here. This is a client component, so a date built from the
+ * browser clock would follow the viewer's timezone — and near midnight that
+ * hands back the wrong Wednesday.
+ */
+export function CreateCycleForm({
+  defaultCycleDate,
+}: {
+  defaultCycleDate: string;
+}) {
   const [state, action, pending] = useActionState(createCycle, EMPTY);
 
   return (
     <form action={action} className="rounded-lg border border-border bg-card p-4">
-      <h2 className="font-display text-xl">Start a new week</h2>
+      <h2 className="font-display text-xl">Add a new week</h2>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="flex-1">
-          <span className="mb-1 block text-sm font-medium">Delivery date</span>
+          <span className="mb-1 block text-sm font-medium">
+            Week of{" "}
+            <span className="text-muted-foreground">(Wednesday)</span>
+          </span>
+          {/* Pre-filled with the coming Wednesday — shopping day, and the first
+              thing that happens in a week. Not restricted to Wednesdays: a
+              holiday week may genuinely shift, and blocking that would be worse
+              than an odd date. Deliveries are Thu–Sat and live in the windows
+              below, not in this field. */}
           <input
             type="date"
             name="cycleDate"
             required
+            defaultValue={defaultCycleDate}
             className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
           />
         </label>
@@ -91,7 +110,7 @@ export function CreateCycleForm() {
           <input
             type="text"
             name="title"
-            placeholder="Week of Aug 13"
+            placeholder="Week of Aug 19"
             className="h-11 w-full rounded-md border border-line-mid bg-paper px-3"
           />
         </label>

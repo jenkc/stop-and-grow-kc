@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { nextWednesday } from "@/lib/week";
 import {
   CreateCycleForm,
   AddWindowForm,
@@ -13,6 +14,11 @@ import {
  * the screen the whole ordering flow depends on. Times are entered fresh every
  * week rather than templated — they genuinely vary, and a template that is
  * usually wrong is worse than a blank field.
+ *
+ * A week is named for its Wednesday, the day she buys the vegetables. Deliveries
+ * run Thursday to Saturday and are carried by delivery_windows, which is the only
+ * place that can hold three days — cycle_date is a single `date` with a unique
+ * index, so it identifies the week rather than describing when anything arrives.
  */
 
 export const dynamic = "force-dynamic";
@@ -122,7 +128,9 @@ export default async function Cycle() {
 
       {current && <AddWindowForm cycleId={current.id} />}
 
-      <CreateCycleForm />
+      {/* force-dynamic above, so this is recomputed per request rather than
+          frozen at build time into a Wednesday that goes stale. */}
+      <CreateCycleForm defaultCycleDate={nextWednesday()} />
 
       {list.length > 1 && (
         <section>
