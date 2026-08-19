@@ -55,15 +55,7 @@ export function OrderForm({
      * `||`, so a deliberately emptied field stays empty.
      */
     const initial = (field: keyof OrderValues) =>
-        state?.values?.[field] ??
-        // dietaryNotes is in OrderValues but deliberately NOT in OrderPrefill:
-        // it is echoed back on a rejected submit, but never carried over from a
-        // previous order. Last week's "no beets" is not a standing instruction,
-        // and prefilling it would put words in their mouth.
-        (field in (prefill ?? {})
-            ? prefill?.[field as keyof OrderPrefill]
-            : undefined) ??
-        "";
+        state?.values?.[field] ?? prefill?.[field] ?? "";
 
     // The selected tier is tracked by id; the price for the running total is
     // looked up from `tiers` so the browser never gets to name its own price.

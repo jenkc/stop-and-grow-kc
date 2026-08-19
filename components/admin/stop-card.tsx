@@ -132,12 +132,7 @@ export function StopCard({ stop }: { stop: Stop }) {
         </div>
       )}
 
-      <StopActions
-        orderId={stop.id}
-        status={stop.status}
-        fulfillment={stop.fulfillment}
-        hasDeliveryFee={stop.order_items.some((i) => i.description === "Delivery")}
-      />
+      <StopActions orderId={stop.id} status={stop.status} />
     </li>
   );
 }

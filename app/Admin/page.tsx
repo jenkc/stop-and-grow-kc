@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Chip } from "@/components/ui/chip";
 import { buttonVariants } from "@/components/ui/button";
 import { MarkPaidButton } from "@/components/admin/mark-paid-button";
+import { OrderRowMenu } from "@/components/admin/order-row-menu";
 import { formatCents } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ type Row = {
   ship_street: string | null;
   ship_apt: string | null;
   ship_city: string | null;
+  delivery_fee_cents: number;
 };
 
 /**
@@ -52,7 +54,7 @@ export default async function Admin() {
   const { data: orders } = await admin
     .from("orders")
     .select(
-      "id, order_number, contact_name, contact_phone, fulfillment, status, payment_status, total_cents, dietary_notes, window_id, ship_street, ship_apt, ship_city",
+      "id, order_number, contact_name, contact_phone, fulfillment, status, payment_status, total_cents, dietary_notes, window_id, ship_street, ship_apt, ship_city, delivery_fee_cents",
     )
     .order("placed_at", { ascending: false });
 
@@ -207,11 +209,22 @@ export default async function Admin() {
                     </Td>
                     <Td className="text-muted-foreground">{r.status}</Td>
                     <Td>
-                      <MarkPaidButton
-                        orderId={r.id}
-                        totalCents={r.total_cents}
-                        paymentStatus={r.payment_status}
-                      />
+                      {/* Mark paid stays inline; everything occasional or
+                          destructive is behind the menu. */}
+                      <span className="inline-flex items-center gap-1">
+                        <MarkPaidButton
+                          orderId={r.id}
+                          totalCents={r.total_cents}
+                          paymentStatus={r.payment_status}
+                        />
+                        <OrderRowMenu
+                          orderId={r.id}
+                          orderNumber={r.order_number}
+                          status={r.status}
+                          fulfillment={r.fulfillment}
+                          hasDeliveryFee={r.delivery_fee_cents > 0}
+                        />
+                      </span>
                     </Td>
                   </tr>
                 ))}

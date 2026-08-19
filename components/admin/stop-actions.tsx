@@ -1,13 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import {
-  setOrderStatus,
-  cancelOrder,
-  addDeliveryFee,
-  removeDeliveryFee,
-} from "@/app/Admin/actions";
-import { DELIVERY_FEE_CENTS } from "@/lib/pricing";
+import { setOrderStatus, cancelOrder } from "@/app/Admin/actions";
 
 /**
  * The buttons on a stop.
@@ -17,8 +11,10 @@ import { DELIVERY_FEE_CENTS } from "@/lib/pricing";
  * buttons would mean reading four labels to find the one that applies — here
  * the next step is the only large target.
  *
- * The delivery fee lives here because Scraps decides per order whether to
- * charge it, and the moment she decides is when she is looking at the order.
+ * The delivery fee used to live here and has moved to the row menu on /Admin.
+ * On a doorstep with an armful of boxes the only questions are "is this the
+ * right stop" and "is it delivered"; deciding whether to charge for delivery is
+ * desk work, and it was competing for space with the action she actually needs.
  */
 
 const NEXT: Record<string, { status: "packed" | "fulfilled"; label: string } | undefined> = {
@@ -29,13 +25,9 @@ const NEXT: Record<string, { status: "packed" | "fulfilled"; label: string } | u
 export function StopActions({
   orderId,
   status,
-  fulfillment,
-  hasDeliveryFee,
 }: {
   orderId: string;
   status: string;
-  fulfillment: string;
-  hasDeliveryFee: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -79,25 +71,6 @@ export function StopActions({
             className="flex min-h-11 items-center justify-center rounded-md border border-line-mid px-4 text-sm transition-colors hover:bg-paper-2 disabled:opacity-60"
           >
             Undo
-          </button>
-        )}
-
-        {fulfillment === "delivery" && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              run(() =>
-                hasDeliveryFee
-                  ? removeDeliveryFee(orderId)
-                  : addDeliveryFee(orderId),
-              )
-            }
-            className="flex min-h-11 items-center justify-center rounded-md border border-line-mid px-4 text-sm transition-colors hover:bg-paper-2 disabled:opacity-60"
-          >
-            {hasDeliveryFee
-              ? "Remove delivery fee"
-              : `Add $${(DELIVERY_FEE_CENTS / 100).toFixed(2)} delivery`}
           </button>
         )}
 
