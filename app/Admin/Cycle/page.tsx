@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dayAfter, nextWednesday } from "@/lib/week";
+import { weekdayOf } from "@/lib/window-times";
 import {
   CreateCycleForm,
   AddWindowForm,
@@ -105,7 +106,14 @@ export default async function Cycle() {
                       className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                     >
                       <span>
-                        <span className="font-medium">{w.label}</span>
+                        {/* The day leads. Deliveries run Thursday to Saturday,
+                            so "10:00am-12:30pm" alone does not say which one —
+                            and the label is free text she types, so it cannot
+                            be relied on to carry it. This comes from starts_at,
+                            which is also what the runsheet sorts by. */}
+                        <span className="font-medium">
+                          {weekdayOf(w.starts_at)} · {w.label}
+                        </span>
                         <span className="ml-2 text-sm text-muted-foreground">
                           {w.kind}
                           {booked > 0 &&

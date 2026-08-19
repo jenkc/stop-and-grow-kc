@@ -13,6 +13,7 @@ import {
 import type { OrderPrefill } from "@/lib/order-prefill-types";
 import { formatCents } from "@/lib/pricing";
 import { LIMITS, formatPhoneInput } from "@/lib/validation";
+import { weekdayOf } from "@/lib/window-times";
 
 export type BoxTier = {
     id: string;
@@ -341,7 +342,10 @@ export function OrderForm({
                                 <option value="">Select a time…</option>
                                 {availableWindows.map((w) => (
                                     <option key={w.id} value={w.id}>
-                                        {w.label}
+                                        {/* Deliveries run Thursday to Saturday,
+                                            so the time alone does not say which
+                                            day someone should be home. */}
+                                        {weekdayOf(w.starts_at)} · {w.label}
                                     </option>
                                 ))}
                             </NativeSelect>

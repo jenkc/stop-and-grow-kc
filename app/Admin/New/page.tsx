@@ -43,6 +43,7 @@ export default async function NewOrder() {
       // that is not the open one — "which week is this?" has to be answerable
       // without leaving the form.
       cycle_title: cycle?.title ?? cycle?.cycle_date ?? "Week",
+      starts_at: w.starts_at,
     };
   });
 

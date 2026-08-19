@@ -15,6 +15,29 @@
  * offered — an end time later than that is outside anything Scraps runs.
  */
 
+/** Kansas City. Same constant as lib/week.ts; duplicated rather than imported
+ *  because that file is server-only and this one must not be. */
+const TZ = 'America/Chicago'
+
+/**
+ * The weekday a window falls on, in Kansas City. "Thursday", or "Thu".
+ *
+ * Formatted against TZ explicitly. A bare toLocaleDateString() would use
+ * whatever zone the code runs in — UTC on Vercel, the viewer's zone in a
+ * browser — and a window starting 6pm Central would print as the next day in
+ * both. Deliveries run Thursday to Saturday, so the day is the part that
+ * decides whether someone is home.
+ */
+export function weekdayOf(
+  isoTimestamp: string,
+  length: 'long' | 'short' = 'long',
+): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    weekday: length,
+  }).format(new Date(isoTimestamp))
+}
+
 export type TimeOption = { value: string; label: string }
 
 const FIRST_MINUTE = 8 * 60 // 8:00am

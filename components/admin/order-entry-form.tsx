@@ -9,6 +9,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { LIMITS, formatPhoneInput } from "@/lib/validation";
 import { formatCents } from "@/lib/pricing";
+import { weekdayOf } from "@/lib/window-times";
 
 /**
  * Taking an order over the phone.
@@ -28,6 +29,8 @@ export type EntryWindow = {
   kind: "pickup" | "delivery";
   label: string;
   cycle_title: string;
+  /** Source of the weekday shown in the picker — the label is free text. */
+  starts_at: string;
 };
 
 const QUANTITIES = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -150,7 +153,7 @@ export function OrderEntryForm({
               <option value="">Choose…</option>
               {available.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.cycle_title} · {w.label}
+                  {w.cycle_title} · {weekdayOf(w.starts_at, "short")} · {w.label}
                 </option>
               ))}
             </NativeSelect>

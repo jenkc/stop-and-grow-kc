@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { LIMITS, formatPhoneInput } from "@/lib/validation";
+import { weekdayOf } from "@/lib/window-times";
 import { formatCents } from "@/lib/pricing";
 
 /**
@@ -300,7 +301,7 @@ export function RestaurantOrderForm({ windows }: { windows: EntryWindow[] }) {
               <option value="">Choose…</option>
               {available.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.cycle_title} · {w.label}
+                  {w.cycle_title} · {weekdayOf(w.starts_at, "short")} · {w.label}
                 </option>
               ))}
             </NativeSelect>
