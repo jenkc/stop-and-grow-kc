@@ -34,6 +34,12 @@ import type { Enums } from '@/lib/supabase/database.types'
 export type OrderValues = {
   custName?: string
   custEmail?: string
+  /**
+   * Echoed even though the phone input is controlled. Its state is seeded from
+   * the prefill once, so without this a rejected submission would fall back to
+   * the saved number and silently discard a correction they had just typed.
+   */
+  custPhone?: string
   streetAddress?: string
   aptSuite?: string
   city?: string
@@ -50,6 +56,7 @@ function submittedValues(formData: FormData): OrderValues {
   return {
     custName: s('custName'),
     custEmail: s('custEmail'),
+    custPhone: s('custPhone'),
     streetAddress: s('streetAddress'),
     aptSuite: s('aptSuite'),
     city: s('city'),
@@ -326,6 +333,66 @@ async function runPlaceOrder(formData: FormData): Promise<OrderState> {
     return { error: 'Could not save the order details. Please try again.' }
   }
 
+  // Keep the customer's saved details current, so their next order starts
+  // prefilled. Signed-in orders only: a guest has no row to write to, and
+  // matching guests to accounts by name or email would put one person's address
+  // on another's record.
+  //
+  // Through the admin client because `authenticated` holds no UPDATE grant on
+  // customers — verified 2026-08-19. That is also what keeps a client from
+  // writing its own is_admin, so it stays that way.
+  //
+  // A failure here must not fail the order: the order is already committed, and
+  // "we could not update your saved address" is not a reason to tell someone
+  // their vegetables did not get ordered.
+  let addressChanged = false
+  if (customerId) {
+    const { data: before } = await admin
+      .from('customers')
+      .select('ship_street, ship_apt, ship_city, ship_state, ship_zip')
+      .eq('id', customerId)
+      .maybeSingle()
+
+    // Only for a delivery — a pickup order carries no address, and blanking a
+    // saved one because someone chose pickup this week would be wrong.
+    if (isDelivery) {
+      const hadAddress = Boolean(before?.ship_street)
+      addressChanged =
+        hadAddress &&
+        (before?.ship_street !== (streetField.value || null) ||
+          before?.ship_apt !== (aptField.value || null) ||
+          before?.ship_city !== (cityField.value || null) ||
+          before?.ship_state !== (state || null) ||
+          before?.ship_zip !== (zip || null))
+
+      const { error: saveError } = await admin
+        .from('customers')
+        .update({
+          phone: phoneField.value || null,
+          ship_street: streetField.value || null,
+          ship_apt: aptField.value || null,
+          ship_city: cityField.value || null,
+          ship_state: state || null,
+          ship_zip: zip || null,
+        })
+        .eq('id', customerId)
+
+      if (saveError) {
+        console.error('[order] could not save customer details:', saveError)
+      }
+    } else if (phoneField.value) {
+      // Pickup still teaches us a phone number.
+      const { error: phoneError } = await admin
+        .from('customers')
+        .update({ phone: phoneField.value })
+        .eq('id', customerId)
+
+      if (phoneError) {
+        console.error('[order] could not save customer phone:', phoneError)
+      }
+    }
+  }
+
   revalidatePath('/Order')
 
   // Tell Scraps. after() runs once the response is on its way, so the Resend
@@ -373,5 +440,11 @@ async function runPlaceOrder(formData: FormData): Promise<OrderState> {
     }),
   )
 
-  redirect(`/Order?placed=${order.order_number}`)
+  // `saved=address` tells the confirmation page to mention that we updated the
+  // address we had on file. Overwriting silently would mean a one-off delivery
+  // to a friend's house quietly becomes their permanent default, and they would
+  // only find out next time they ordered.
+  redirect(
+    `/Order?placed=${order.order_number}${addressChanged ? '&saved=address' : ''}`,
+  )
 }

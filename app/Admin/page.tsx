@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Chip } from "@/components/ui/chip";
 import { buttonVariants } from "@/components/ui/button";
+import { MarkPaidButton } from "@/components/admin/mark-paid-button";
 import { formatCents } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,23 @@ type Row = {
   total_cents: number;
   dietary_notes: string | null;
   window_id: string | null;
+  ship_street: string | null;
+  ship_apt: string | null;
+  ship_city: string | null;
 };
+
+/**
+ * Street line only — no city, state or ZIP.
+ *
+ * This column exists to answer "which stop is this?" at a glance while scanning
+ * the week. Everything is in Kansas City, so the city repeated on every row
+ * would be noise, and the full address is on the runsheet where it is actually
+ * used for navigating.
+ */
+function shortAddress(r: Row): string | null {
+  if (r.fulfillment !== "delivery" || !r.ship_street) return null;
+  return [r.ship_street, r.ship_apt].filter(Boolean).join(" ");
+}
 
 export default async function Admin() {
   const admin = createAdminClient();
@@ -35,7 +52,7 @@ export default async function Admin() {
   const { data: orders } = await admin
     .from("orders")
     .select(
-      "id, order_number, contact_name, contact_phone, fulfillment, status, payment_status, total_cents, dietary_notes, window_id",
+      "id, order_number, contact_name, contact_phone, fulfillment, status, payment_status, total_cents, dietary_notes, window_id, ship_street, ship_apt, ship_city",
     )
     .order("placed_at", { ascending: false });
 
@@ -103,15 +120,22 @@ export default async function Admin() {
                     {formatCents(r.total_cents)}
                   </span>
                 </div>
+                {shortAddress(r) && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {shortAddress(r)}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <Chip
                     status={r.fulfillment === "delivery" ? "delivery" : "pickup"}
                   >
                     {r.fulfillment}
                   </Chip>
-                  <Chip status={r.payment_status === "paid" ? "paid" : "unpaid"}>
-                    {r.payment_status === "paid" ? "Paid" : "Unpaid"}
-                  </Chip>
+                  <MarkPaidButton
+                    orderId={r.id}
+                    totalCents={r.total_cents}
+                    paymentStatus={r.payment_status}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {r.status}
                   </span>
@@ -133,6 +157,7 @@ export default async function Admin() {
                   <Th>Order</Th>
                   <Th>Name</Th>
                   <Th>Type</Th>
+                  <Th>Address</Th>
                   <Th>Time</Th>
                   <Th className="text-right">Total</Th>
                   <Th>Status</Th>
@@ -172,6 +197,9 @@ export default async function Admin() {
                       </Chip>
                     </Td>
                     <Td className="text-muted-foreground">
+                      {shortAddress(r) ?? "—"}
+                    </Td>
+                    <Td className="text-muted-foreground">
                       {r.window_id ? labelFor.get(r.window_id) : "—"}
                     </Td>
                     <Td className="text-right font-medium tabular-nums">
@@ -179,11 +207,11 @@ export default async function Admin() {
                     </Td>
                     <Td className="text-muted-foreground">{r.status}</Td>
                     <Td>
-                      <Chip
-                        status={r.payment_status === "paid" ? "paid" : "unpaid"}
-                      >
-                        {r.payment_status === "paid" ? "Paid" : "Unpaid"}
-                      </Chip>
+                      <MarkPaidButton
+                        orderId={r.id}
+                        totalCents={r.total_cents}
+                        paymentStatus={r.payment_status}
+                      />
                     </Td>
                   </tr>
                 ))}

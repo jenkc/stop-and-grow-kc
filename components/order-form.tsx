@@ -5,7 +5,12 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { placeOrder, type OrderState } from "@/app/Order/actions";
+import {
+    placeOrder,
+    type OrderState,
+    type OrderValues,
+} from "@/app/Order/actions";
+import type { OrderPrefill } from "@/lib/order-prefill-types";
 import { formatCents } from "@/lib/pricing";
 import { LIMITS, formatPhoneInput } from "@/lib/validation";
 
@@ -28,14 +33,37 @@ const QUANTITIES = Array.from({ length: 20 }, (_, i) => i + 1);
 export function OrderForm({
     tiers,
     windows,
+    prefill,
 }: {
     tiers: BoxTier[];
     windows: OrderWindow[];
+    /** Null for a signed-out visitor. See lib/order-prefill.ts. */
+    prefill?: OrderPrefill | null;
 }) {
     const [state, formAction, pending] = useActionState<OrderState, FormData>(
         placeOrder,
         {},
     );
+
+    /**
+     * What a field should show: what they just submitted, else what we knew
+     * about them, else empty.
+     *
+     * Order matters. If prefill won, a customer who cleared a stale apartment
+     * number and hit Place order would watch it come back on the validation
+     * re-render — the same class of bug as the form clearing itself. `??` not
+     * `||`, so a deliberately emptied field stays empty.
+     */
+    const initial = (field: keyof OrderValues) =>
+        state?.values?.[field] ??
+        // dietaryNotes is in OrderValues but deliberately NOT in OrderPrefill:
+        // it is echoed back on a rejected submit, but never carried over from a
+        // previous order. Last week's "no beets" is not a standing instruction,
+        // and prefilling it would put words in their mouth.
+        (field in (prefill ?? {})
+            ? prefill?.[field as keyof OrderPrefill]
+            : undefined) ??
+        "";
 
     // The selected tier is tracked by id; the price for the running total is
     // looked up from `tiers` so the browser never gets to name its own price.
@@ -43,7 +71,10 @@ export function OrderForm({
     const [quantity, setQuantity] = useState(0);
     const [entrySource, setEntrySource] = useState("");
     const [fulfillment, setFulfillment] = useState("");
-    const [phone, setPhone] = useState("");
+    // Controlled, so unlike the others it cannot use defaultValue — the initial
+    // value has to be seeded into state. A lazy initialiser, so a re-render
+    // never resets what they are mid-way through typing.
+    const [phone, setPhone] = useState(() => initial("custPhone"));
 
     // Reformat as they type, except while deleting. Without the delete check,
     // backspacing "(816) " to "(816" re-adds the ")" the formatter just removed
@@ -128,7 +159,7 @@ export function OrderForm({
                         maxLength={LIMITS.name}
                         autoComplete="name"
                         placeholder="Enter your name"
-                        defaultValue={state?.values?.custName}
+                        defaultValue={initial("custName")}
                     />
                 </Field>
 
@@ -141,7 +172,7 @@ export function OrderForm({
                         maxLength={LIMITS.email}
                         autoComplete="email"
                         placeholder="Enter your email"
-                        defaultValue={state?.values?.custEmail}
+                        defaultValue={initial("custEmail")}
                     />
                 </Field>
 
@@ -236,7 +267,7 @@ export function OrderForm({
                                 maxLength={LIMITS.street}
                                 autoComplete="address-line1"
                                 placeholder="Enter your delivery address"
-                                defaultValue={state?.values?.streetAddress}
+                                defaultValue={initial("streetAddress")}
                             />
                         </Field>
 
@@ -249,7 +280,7 @@ export function OrderForm({
                                 maxLength={LIMITS.apt}
                                 autoComplete="address-line2"
                                 placeholder="Apt 4B"
-                                defaultValue={state?.values?.aptSuite}
+                                defaultValue={initial("aptSuite")}
                             />
                         </Field>
 
@@ -267,7 +298,7 @@ export function OrderForm({
                                     maxLength={LIMITS.city}
                                     autoComplete="address-level2"
                                     placeholder="City"
-                                    defaultValue={state?.values?.city}
+                                    defaultValue={initial("city")}
                                 />
                             </Field>
 
@@ -277,7 +308,7 @@ export function OrderForm({
                                     id="state"
                                     name="state"
                                     required
-                                    defaultValue={state?.values?.state}
+                                    defaultValue={initial("state")}
                                 >
                                     <option value="">Select...</option>
                                     <option value="KS">Kansas</option>
@@ -299,7 +330,7 @@ export function OrderForm({
                                 maxLength={10}
                                 autoComplete="postal-code"
                                 placeholder="64111"
-                                defaultValue={state?.values?.zipCode}
+                                defaultValue={initial("zipCode")}
                             />
                         </Field>
                     </>
@@ -341,7 +372,7 @@ export function OrderForm({
                         rows={2}
                         maxLength={LIMITS.notes}
                         placeholder="No celery or beets"
-                        defaultValue={state?.values?.dietaryNotes}
+                        defaultValue={initial("dietaryNotes")}
                     />
                 </Field>
 

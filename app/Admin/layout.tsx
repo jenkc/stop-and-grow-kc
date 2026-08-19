@@ -21,6 +21,7 @@ const TABS = [
   { href: "/Admin", label: "Orders" },
   { href: "/Admin/Runsheet", label: "Runsheet" },
   { href: "/Admin/Money", label: "Money" },
+  { href: "/Admin/Customers", label: "Customers" },
   { href: "/Admin/Cycle", label: "This week" },
 ];
 

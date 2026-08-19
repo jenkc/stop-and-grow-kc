@@ -2,13 +2,14 @@ import { PageShell } from "@/components/page-shell";
 import { OrderForm, type BoxTier, type OrderWindow } from "@/components/order-form";
 import { createClient } from "@/lib/supabase/server";
 import { getOrderingCycle, closedMessage } from "@/lib/cycle";
+import { getOrderPrefill } from "@/lib/order-prefill";
 
 export default async function Order({
     searchParams,
 }: {
-    searchParams: Promise<{ confirmed?: string; placed?: string }>
+    searchParams: Promise<{ confirmed?: string; placed?: string; saved?: string }>
 }) {
-    const { confirmed, placed } = await searchParams;
+    const { confirmed, placed, saved } = await searchParams;
 
     // Catalog is read server-side so the price list is never client-authored.
     const supabase = await createClient();
@@ -32,6 +33,16 @@ export default async function Order({
                         Your order number is <strong>{placed}</strong>. We&rsquo;ll be in
                         touch to confirm the details.
                     </p>
+
+                    {/* Only when the address actually changed. Saying nothing
+                        would let a one-off delivery to a friend's house quietly
+                        become their permanent default. */}
+                    {saved === "address" && (
+                        <p className="mt-4 border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                            We&rsquo;ve saved this address for next time. Just type a
+                            different one on your next order if it changes.
+                        </p>
+                    )}
                 </div>
             </PageShell>
         );
@@ -63,6 +74,10 @@ export default async function Order({
 
     const windows: OrderWindow[] = windowRows ?? [];
 
+    // Name and email from their account, phone and address from their last
+    // order — signup never asks for those. Signed-out visitors get null.
+    const prefill = await getOrderPrefill();
+
     return (
         <PageShell>
             {confirmed && (
@@ -76,7 +91,9 @@ export default async function Order({
                     </p>
                 </div>
             )}
-            <OrderForm tiers={tiers} windows={windows} />
+            {/* null for a signed-out visitor, so the form renders exactly as
+                before for guests. */}
+            <OrderForm tiers={tiers} windows={windows} prefill={prefill} />
         </PageShell>
     );
 }

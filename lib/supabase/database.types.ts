@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       box_tiers: {
@@ -79,6 +54,11 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          ship_apt: string | null
+          ship_city: string | null
+          ship_state: string | null
+          ship_street: string | null
+          ship_zip: string | null
           updated_at: string
         }
         Insert: {
@@ -90,6 +70,11 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          ship_apt?: string | null
+          ship_city?: string | null
+          ship_state?: string | null
+          ship_street?: string | null
+          ship_zip?: string | null
           updated_at?: string
         }
         Update: {
@@ -101,6 +86,11 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          ship_apt?: string | null
+          ship_city?: string | null
+          ship_state?: string | null
+          ship_street?: string | null
+          ship_zip?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -685,9 +675,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       checkout_method: ["guest", "account"],

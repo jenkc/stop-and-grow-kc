@@ -1,6 +1,7 @@
 import { Chip } from "@/components/ui/chip";
 import { formatCents } from "@/lib/pricing";
 import { StopActions } from "@/components/admin/stop-actions";
+import { MarkPaidButton } from "@/components/admin/mark-paid-button";
 
 /**
  * One stop on the runsheet.
@@ -77,9 +78,21 @@ export function StopCard({ stop }: { stop: Stop }) {
           <span className="text-lg font-bold tabular-nums">
             {formatCents(stop.total_cents)}
           </span>
-          <Chip status={paid ? "paid" : "unpaid"}>
-            {paid ? "Paid" : "Unpaid"}
-          </Chip>
+          {/* Taking payment at the door is the other half of this screen, so the
+              control lives where the amount is. print:hidden — a paper runsheet
+              has nothing to tap, and the chip below carries the state instead. */}
+          <span className="print:hidden">
+            <MarkPaidButton
+              orderId={stop.id}
+              totalCents={stop.total_cents}
+              paymentStatus={stop.payment_status}
+            />
+          </span>
+          <span className="hidden print:inline">
+            <Chip status={paid ? "paid" : "unpaid"}>
+              {paid ? "Paid" : "Unpaid"}
+            </Chip>
+          </span>
         </div>
       </div>
 

@@ -414,6 +414,28 @@ export async function markPaid(
 }
 
 /**
+ * Mark one order paid, from wherever it is on screen.
+ *
+ * A thin wrapper over markPaid() rather than its own write path — same ledger
+ * insert, same already-paid guard, same money-from-the-database rule. The only
+ * thing it adds is a default method, because a single tap at a door has no
+ * room for a picker and cash is what is usually in the hand.
+ *
+ * Deliberately one-way. payments is append-only: a row is inserted and never
+ * updated, so there is no un-pay that does not either delete a record of money
+ * received or invent a reversal concept the app does not have. The UI asks for
+ * confirmation before calling this instead — a mistaken tap is recoverable by
+ * saying no, and a wrong "paid" is fixed in the database, which is the right
+ * amount of friction for money.
+ */
+export async function markOnePaid(
+  orderId: string,
+  method: Enums<'payment_method'> = 'cash',
+): Promise<AdminActionState> {
+  return await markPaid([orderId], method)
+}
+
+/**
  * Add the delivery fee to an order.
  *
  * Narrow on purpose. The fee is not charged automatically at checkout because
