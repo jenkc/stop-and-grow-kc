@@ -230,7 +230,10 @@ export async function createRestaurantOrder(
     // $50.01 — so the typed total is stored verbatim and the unit price is the
     // approximation. The reverse when she types a unit price. In both
     // directions the number she was given on the phone is the one that survives.
-    const total = priceModes[i] === 'total'
+    // Whitelisted rather than cast: this is a public POST, and an unrecognised
+    // value would otherwise reach an enum column and fail at the insert.
+    const pricingMode = priceModes[i] === 'total' ? 'total' : 'each'
+    const total = pricingMode === 'total'
     const lineTotalCents = total ? amountCents : amountCents * quantity
     const unitPriceCents = total ? Math.round(amountCents / quantity) : amountCents
 
@@ -239,6 +242,7 @@ export async function createRestaurantOrder(
       quantity,
       unitPriceCents,
       lineTotalCents,
+      pricingMode,
     })
   }
 

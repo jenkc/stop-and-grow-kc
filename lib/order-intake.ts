@@ -54,6 +54,14 @@ export type CustomLine = {
   quantity: number
   unitPriceCents: number
   lineTotalCents: number
+  /**
+   * Which figure a human typed. Not recoverable from the numbers afterwards —
+   * $100 across 4 divides evenly and is indistinguishable from a real $25-each
+   * line — so it is recorded rather than inferred. Sales analysis filters on it
+   * before averaging unit_price_cents, since a derived unit price is not a price
+   * anyone quoted.
+   */
+  pricingMode: Enums<'pricing_mode'>
 }
 
 export type IntakeFields = {
@@ -231,6 +239,7 @@ export async function writeCustomOrder(opts: {
       quantity: l.quantity,
       unit_price_cents: l.unitPriceCents,
       line_total_cents: l.lineTotalCents,
+      pricing_mode: l.pricingMode,
     })),
   )
 

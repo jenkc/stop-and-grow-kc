@@ -149,7 +149,6 @@ export type Database = {
           },
         ]
       }
-
       distribution_cycles: {
         Row: {
           created_at: string
@@ -186,7 +185,6 @@ export type Database = {
         }
         Relationships: []
       }
-
       farms: {
         Row: {
           contact: string | null
@@ -251,6 +249,7 @@ export type Database = {
           id: string
           line_total_cents: number
           order_id: string
+          pricing_mode: Database["public"]["Enums"]["pricing_mode"]
           quantity: number
           unit_price_cents: number
         }
@@ -260,6 +259,7 @@ export type Database = {
           id?: string
           line_total_cents: number
           order_id: string
+          pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
           quantity: number
           unit_price_cents: number
         }
@@ -269,6 +269,7 @@ export type Database = {
           id?: string
           line_total_cents?: number
           order_id?: string
+          pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
           quantity?: number
           unit_price_cents?: number
         }
@@ -317,9 +318,9 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           subtotal_cents: number
           time_window: Database["public"]["Enums"]["time_window"] | null
-          window_id: string | null
           total_cents: number
           updated_at: string
+          window_id: string | null
         }
         Insert: {
           amount_paid_cents?: number
@@ -348,9 +349,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal_cents?: number
           time_window?: Database["public"]["Enums"]["time_window"] | null
-          window_id?: string | null
           total_cents?: number
           updated_at?: string
+          window_id?: string | null
         }
         Update: {
           amount_paid_cents?: number
@@ -379,9 +380,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal_cents?: number
           time_window?: Database["public"]["Enums"]["time_window"] | null
-          window_id?: string | null
           total_cents?: number
           updated_at?: string
+          window_id?: string | null
         }
         Relationships: [
           {
@@ -389,6 +390,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_window_id_fkey"
+            columns: ["window_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_windows"
             referencedColumns: ["id"]
           },
         ]
@@ -540,6 +548,7 @@ export type Database = {
     }
     Enums: {
       checkout_method: "guest" | "account"
+      cycle_status: "draft" | "open" | "closed" | "fulfilled"
       fulfillment_kind: "pickup" | "delivery"
       order_status:
         | "pending"
@@ -549,7 +558,7 @@ export type Database = {
         | "cancelled"
       payment_method: "card" | "cash" | "check" | "venmo" | "other"
       payment_status: "unpaid" | "partial" | "paid" | "refunded"
-      cycle_status: "draft" | "open" | "closed" | "fulfilled"
+      pricing_mode: "each" | "total"
       time_window: "morning" | "afternoon" | "evening"
     }
     CompositeTypes: {
@@ -693,6 +702,7 @@ export const Constants = {
       ],
       payment_method: ["card", "cash", "check", "venmo", "other"],
       payment_status: ["unpaid", "partial", "paid", "refunded"],
+      pricing_mode: ["each", "total"],
       time_window: ["morning", "afternoon", "evening"],
     },
   },
