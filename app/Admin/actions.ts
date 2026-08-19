@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { getAdminEmail } from '@/lib/access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DELIVERY_FEE_CENTS, DELIVERY_FEE_DESCRIPTION } from '@/lib/pricing'
-import { validateOrderFields, writeOrder } from '@/lib/order-intake'
+import {
+  validateOrderFields,
+  writeOrder,
+  writeCustomOrder,
+  type CustomLine,
+} from '@/lib/order-intake'
+import { LIMITS, boundedText } from '@/lib/validation'
 import type { Enums } from '@/lib/supabase/database.types'
 
 const MAX_QUANTITY = 20
@@ -124,6 +130,127 @@ export async function createOrder(
     boxTierId: tier.id,
   })
 
+  if (!result.ok) return { error: result.error }
+
+  revalidateAdmin()
+  return { ok: `Order ${result.orderNumber} added.` }
+}
+
+/** A restaurant order can carry more lines than a box order ever would. */
+const MAX_LINES = 30
+
+/**
+ * Dollars as typed -> integer cents.
+ *
+ * Parsing money with Number() and multiplying by 100 is where rounding bugs
+ * live: 45.10 * 100 is 4509.999... in float, which truncates to $45.09. Round
+ * instead of truncating, and reject anything that is not a plain amount so a
+ * pasted "$45.00" or "1,200" fails visibly rather than becoming a wrong total.
+ */
+function parseMoneyToCents(raw: string): number | null {
+  const cleaned = raw.trim().replace(/^\$/, '').replace(/,/g, '')
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null
+  const cents = Math.round(Number(cleaned) * 100)
+  return Number.isSafeInteger(cents) ? cents : null
+}
+
+/**
+ * Enter a restaurant order — arbitrary lines, negotiated prices.
+ *
+ * This is the "general line-item editor" the delivery-fee comment below has
+ * been pointing at. Restaurants do not buy $20 boxes: Scraps quotes them
+ * directly and types the agreed figures in, so unlike every other write path in
+ * this app the prices DO come from the form. That is safe only because
+ * requireAdmin() gates it — see the warning on writeCustomOrder().
+ *
+ * Like createOrder(), deliberately not gated on ordering being open. A
+ * restaurant's standing Thursday order has nothing to do with whether the
+ * public storefront is taking orders this week.
+ */
+export async function createRestaurantOrder(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  if (!(await requireAdmin())) return FORBIDDEN
+
+  const validated = validateOrderFields(formData)
+  if (!validated.ok) return { error: validated.error }
+  const fields = validated.fields
+
+  // Parallel arrays: the form repeats these three names per row.
+  const descriptions = formData.getAll('lineDescription').map(String)
+  const quantities = formData.getAll('lineQuantity').map(String)
+  const prices = formData.getAll('linePrice').map(String)
+
+  if (descriptions.length !== quantities.length || descriptions.length !== prices.length) {
+    return { error: 'Those order lines did not come through. Try again.' }
+  }
+  if (descriptions.length > MAX_LINES) {
+    return { error: `That is more than ${MAX_LINES} lines.` }
+  }
+
+  const lines: CustomLine[] = []
+
+  for (let i = 0; i < descriptions.length; i++) {
+    const description = descriptions[i].trim()
+    const rawQty = quantities[i].trim()
+    const rawPrice = prices[i].trim()
+
+    // A blank row is the last one the form rendered and she did not use.
+    if (!description && !rawQty && !rawPrice) continue
+
+    const bounded = boundedText(description, LIMITS.name, 'That line', {
+      required: true,
+      missing: 'a description',
+    })
+    if (!bounded.ok) return { error: `Line ${i + 1}: ${bounded.error}` }
+
+    const quantity = Number(rawQty)
+    // The order_items check constraint caps quantity at 20, so this is the
+    // message rather than a failed insert. Price per unit is where a large
+    // order goes — "40 lb tomatoes" is one line at a per-order price, not
+    // quantity 40.
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+      return { error: `Line ${i + 1}: quantity must be a whole number from 1 to 20.` }
+    }
+
+    const unitPriceCents = parseMoneyToCents(rawPrice)
+    if (unitPriceCents === null) {
+      return { error: `Line ${i + 1}: price must be an amount like 45 or 45.50.` }
+    }
+
+    lines.push({ description: bounded.value, quantity, unitPriceCents })
+  }
+
+  if (lines.length === 0) return { error: 'Add at least one line to the order.' }
+
+  const windowId = String(formData.get('windowId') ?? '')
+  if (!windowId) {
+    return {
+      error:
+        fields.fulfillment === 'delivery'
+          ? 'Choose a delivery time.'
+          : 'Choose a pickup time.',
+    }
+  }
+
+  const admin = createAdminClient()
+
+  // Same rule as createOrder: the window must exist and match the fulfillment
+  // kind, so a delivery cannot claim a pickup slot. No cycle-status filter —
+  // a restaurant order can land in a week that is not open to the public.
+  const { data: window, error: windowError } = await admin
+    .from('delivery_windows')
+    .select('id')
+    .eq('id', windowId)
+    .eq('kind', fields.fulfillment)
+    .maybeSingle()
+
+  if (windowError || !window) {
+    return { error: 'That time does not match pickup/delivery. Pick another.' }
+  }
+
+  const result = await writeCustomOrder({ fields, windowId: window.id, lines })
   if (!result.ok) return { error: result.error }
 
   revalidateAdmin()

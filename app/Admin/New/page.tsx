@@ -1,9 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  OrderEntryForm,
-  type EntryTier,
-  type EntryWindow,
-} from "@/components/admin/order-entry-form";
+import type { EntryTier, EntryWindow } from "@/components/admin/order-entry-form";
+import { NewOrderTabs } from "@/components/admin/new-order-tabs";
 
 /**
  * Entering an order that did not come through the website — a phone call, a
@@ -59,7 +56,7 @@ export default async function NewOrder() {
         </p>
       </header>
 
-      <OrderEntryForm tiers={(tiers ?? []) as EntryTier[]} windows={entryWindows} />
+      <NewOrderTabs tiers={(tiers ?? []) as EntryTier[]} windows={entryWindows} />
     </div>
   );
 }

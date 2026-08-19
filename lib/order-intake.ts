@@ -36,6 +36,19 @@ export type IntakeResult =
   | { ok: true; orderNumber: string; orderId: string }
   | { ok: false; error: string }
 
+/**
+ * One line of a restaurant order — "20 lb tomatoes", 1, $45.00.
+ *
+ * box_tier_id is null on these: order_items.box_tier_id is nullable precisely so
+ * a line can exist without a catalog row behind it. Nothing about the schema
+ * needed to change for this.
+ */
+export type CustomLine = {
+  description: string
+  quantity: number
+  unitPriceCents: number
+}
+
 export type IntakeFields = {
   contactName: string
   contactEmail: string | null
@@ -140,6 +153,97 @@ export function validateOrderFields(formData: FormData): ValidatedFields {
       shipZip: isDelivery ? zip || null : null,
     },
   }
+}
+
+/**
+ * Write a restaurant order: one order row and N free-text lines.
+ *
+ * The counterpart to writeOrder(), which exists for box orders and takes a
+ * box_tiers row the caller has already read. Here there is no catalog to read
+ * from — restaurant pricing is negotiated per order, off-site, and Scraps types
+ * the agreed figures in. So prices DO come from the form, which is safe only
+ * because every caller is an admin: createRestaurantOrder() checks
+ * getAdminEmail() before calling in. Never expose this to a public form without
+ * replacing that assumption with a catalog lookup.
+ *
+ * Same manual rollback as writeOrder, for the same reason: PostgREST has no
+ * cross-request transaction, so a failed items insert would otherwise leave a
+ * committed order with nothing in it — a stop on the runsheet with no goods.
+ */
+export async function writeCustomOrder(opts: {
+  fields: IntakeFields
+  windowId: string
+  lines: CustomLine[]
+  status?: Enums<'order_status'>
+}): Promise<IntakeResult> {
+  const subtotalCents = opts.lines.reduce(
+    (sum, l) => sum + l.unitPriceCents * l.quantity,
+    0,
+  )
+  const admin = createAdminClient()
+
+  const { data: order, error: orderError } = await admin
+    .from('orders')
+    .insert({
+      // Not linked to a customers row. A restaurant is not one of the household
+      // accounts, and attaching it to the person who happened to call would put
+      // their name and address on a business's order.
+      customer_id: null,
+      contact_name: opts.fields.contactName,
+      contact_email: opts.fields.contactEmail,
+      contact_phone: opts.fields.contactPhone,
+      fulfillment: opts.fields.fulfillment,
+      window_id: opts.windowId,
+      time_window: null,
+      dietary_notes: opts.fields.dietaryNotes,
+      entry_source: opts.fields.entrySource,
+      ship_street: opts.fields.shipStreet,
+      ship_apt: opts.fields.shipApt,
+      ship_city: opts.fields.shipCity,
+      ship_state: opts.fields.shipState,
+      ship_zip: opts.fields.shipZip,
+      subtotal_cents: subtotalCents,
+      delivery_fee_cents: 0,
+      total_cents: subtotalCents,
+      checkout_method: 'guest',
+      ...(opts.status ? { status: opts.status } : {}),
+    })
+    .select('id, order_number')
+    .single()
+
+  if (orderError || !order) {
+    console.error('[order] restaurant insert failed:', orderError)
+    return { ok: false, error: 'Could not create that order. Please try again.' }
+  }
+
+  const { error: itemError } = await admin.from('order_items').insert(
+    opts.lines.map((l) => ({
+      order_id: order.id,
+      box_tier_id: null,
+      description: l.description,
+      quantity: l.quantity,
+      unit_price_cents: l.unitPriceCents,
+      line_total_cents: l.unitPriceCents * l.quantity,
+    })),
+  )
+
+  if (itemError) {
+    const { error: cleanupError } = await admin
+      .from('orders')
+      .delete()
+      .eq('id', order.id)
+
+    if (cleanupError) {
+      console.error(
+        `[order] orphaned restaurant order ${order.order_number} (${order.id}): items insert failed and cleanup failed:`,
+        cleanupError,
+      )
+    }
+
+    return { ok: false, error: 'Could not save the order lines. Please try again.' }
+  }
+
+  return { ok: true, orderNumber: order.order_number, orderId: order.id }
 }
 
 /**

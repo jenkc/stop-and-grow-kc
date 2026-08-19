@@ -56,7 +56,7 @@ export default async function Home() {
           />
           <Button size="lg" nativeButton={false}
           className="h-auto min-h-10 px-3.5 py-3 text-center whitespace-normal"
-          render={<Link href="/HowItWorks">Restaurant Inquiries</Link>}
+          render={<Link href="/Contact">Restaurant Inquiries</Link>}
           />
         </div>
       </main>

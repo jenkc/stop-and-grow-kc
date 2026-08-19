@@ -11,6 +11,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/password-input'
 
 export function SignupForm() {
   const [state, signupAction, pending] = useActionState(signup, null)
@@ -34,10 +35,9 @@ export function SignupForm() {
           <FieldLabel htmlFor="password">Password</FieldLabel>
           {/* new-password, not current-password — otherwise password managers
               offer a saved login instead of generating one. */}
-          <Input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="new-password"
             minLength={6}
             required
