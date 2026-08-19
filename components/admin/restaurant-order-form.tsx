@@ -25,7 +25,21 @@ import { formatCents } from "@/lib/pricing";
  * and it survives a failed submit without a client-side store.
  */
 
-type Line = { key: number; description: string; quantity: number; price: string };
+/**
+ * `priceMode` is per line, not per form. One order can mix "$4.50 a pound, 12
+ * pounds" with "the whole crate, $50" — that is how the prices actually arrive
+ * over the phone, and forcing one convention would make her do arithmetic while
+ * someone is talking.
+ */
+type PriceMode = "each" | "total";
+
+type Line = {
+  key: number;
+  description: string;
+  quantity: number;
+  price: string;
+  priceMode: PriceMode;
+};
 
 const EMPTY: AdminActionState = {};
 const QUANTITIES = Array.from({ length: 20 }, (_, i) => i + 1);
@@ -35,6 +49,7 @@ const blankLine = (key: number): Line => ({
   description: "",
   quantity: 1,
   price: "",
+  priceMode: "each",
 });
 
 /** Mirrors parseMoneyToCents on the server — display only, never the source of truth. */
@@ -54,7 +69,12 @@ export function RestaurantOrderForm({ windows }: { windows: EntryWindow[] }) {
 
   const isDelivery = fulfillment === "delivery";
   const available = windows.filter((w) => w.kind === fulfillment);
-  const total = lines.reduce((sum, l) => sum + centsOf(l.price) * l.quantity, 0);
+
+  // Mirrors the server: a "total" line contributes what she typed, an "each"
+  // line contributes price * quantity.
+  const lineTotal = (l: Line) =>
+    l.priceMode === "total" ? centsOf(l.price) : centsOf(l.price) * l.quantity;
+  const total = lines.reduce((sum, l) => sum + lineTotal(l), 0);
 
   // Remounting on success clears every uncontrolled input, so the next order
   // starts blank rather than holding the last restaurant's address.
@@ -97,74 +117,110 @@ export function RestaurantOrderForm({ windows }: { windows: EntryWindow[] }) {
         <legend className="px-1 text-sm font-medium">What they ordered</legend>
 
         {lines.map((line, i) => (
+          // Each line is its own bordered block: the product name gets a full
+          // row, and the numbers sit underneath. Cramming all four into one
+          // row left the description too narrow to read back what she typed,
+          // which is the field she checks against what the caller just said.
           <div
             key={line.key}
-            className="grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto] sm:items-end"
+            className="space-y-2 rounded-md border border-border bg-paper-2/40 p-3"
           >
-            <Field>
-              <FieldLabel htmlFor={`d-${line.key}`}>
-                {i === 0 ? "Item" : <span className="sr-only">Item</span>}
-              </FieldLabel>
-              <Input
-                id={`d-${line.key}`}
-                name="lineDescription"
-                type="text"
-                required
-                maxLength={LIMITS.name}
-                placeholder="20 lb tomatoes"
-                value={line.description}
-                onChange={(e) => patch(line.key, { description: e.target.value })}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor={`q-${line.key}`}>
-                {i === 0 ? "Qty" : <span className="sr-only">Quantity</span>}
-              </FieldLabel>
-              <NativeSelect
-                id={`q-${line.key}`}
-                name="lineQuantity"
-                value={line.quantity}
-                onChange={(e) => patch(line.key, { quantity: Number(e.target.value) })}
+            <div className="flex items-end gap-2">
+              <Field className="flex-1">
+                <FieldLabel htmlFor={`d-${line.key}`}>Item {i + 1}</FieldLabel>
+                <Input
+                  id={`d-${line.key}`}
+                  name="lineDescription"
+                  type="text"
+                  required
+                  maxLength={LIMITS.name}
+                  placeholder="Tomatoes, heirloom"
+                  value={line.description}
+                  onChange={(e) => patch(line.key, { description: e.target.value })}
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => removeLine(line.key)}
+                disabled={lines.length === 1}
+                aria-label={`Remove item ${i + 1}`}
+                className="h-9 shrink-0"
               >
-                {QUANTITIES.map((q) => (
-                  <option key={q} value={q}>
-                    {q}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
+                Remove
+              </Button>
+            </div>
 
-            <Field>
-              <FieldLabel htmlFor={`p-${line.key}`}>
-                {i === 0 ? "Price each" : <span className="sr-only">Price each</span>}
-              </FieldLabel>
-              {/* text, not number: a number input lets a stray scroll change the
-                  price, and its spinners are useless for money. inputMode gets
-                  the numeric keypad on a phone anyway. */}
-              <Input
-                id={`p-${line.key}`}
-                name="linePrice"
-                type="text"
-                inputMode="decimal"
-                required
-                placeholder="45.00"
-                value={line.price}
-                onChange={(e) => patch(line.key, { price: e.target.value })}
-              />
-            </Field>
+            <div className="grid gap-2 sm:grid-cols-[5rem_1fr_auto] sm:items-end">
+              <Field>
+                <FieldLabel htmlFor={`q-${line.key}`}>Qty</FieldLabel>
+                <NativeSelect
+                  id={`q-${line.key}`}
+                  name="lineQuantity"
+                  value={line.quantity}
+                  onChange={(e) => patch(line.key, { quantity: Number(e.target.value) })}
+                >
+                  {QUANTITIES.map((q) => (
+                    <option key={q} value={q}>
+                      {q}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => removeLine(line.key)}
-              disabled={lines.length === 1}
-              aria-label={`Remove line ${i + 1}`}
-              className="h-11 sm:h-9"
-            >
-              Remove
-            </Button>
+              <Field>
+                <FieldLabel htmlFor={`p-${line.key}`}>
+                  {line.priceMode === "total" ? "Total for the line" : "Price each"}
+                </FieldLabel>
+                {/* text, not number: a number input lets a stray scroll change
+                    the price, and its spinners are useless for money. inputMode
+                    still gets the numeric keypad on a phone. */}
+                <Input
+                  id={`p-${line.key}`}
+                  name="linePrice"
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  placeholder="45.00"
+                  value={line.price}
+                  onChange={(e) => patch(line.key, { price: e.target.value })}
+                />
+              </Field>
+
+              {/* Submitted per line so the server knows which figure was typed.
+                  A select rather than a checkbox: the two options name
+                  themselves, where a checkbox would need a label explaining
+                  what unticking means. */}
+              <Field>
+                <FieldLabel htmlFor={`m-${line.key}`}>Price is</FieldLabel>
+                <NativeSelect
+                  id={`m-${line.key}`}
+                  name="linePriceMode"
+                  value={line.priceMode}
+                  onChange={(e) =>
+                    patch(line.key, { priceMode: e.target.value as PriceMode })
+                  }
+                >
+                  <option value="each">Each</option>
+                  <option value="total">Line total</option>
+                </NativeSelect>
+              </Field>
+            </div>
+
+            {/* Only worth showing when the two figures differ — on a quantity of
+                1, or an empty price, it would just restate the field above. */}
+            {line.quantity > 1 && centsOf(line.price) > 0 && (
+              <p className="figure text-xs text-muted-foreground">
+                {line.priceMode === "total"
+                  ? `${formatCents(centsOf(line.price))} total · about ${formatCents(
+                      Math.round(centsOf(line.price) / line.quantity),
+                    )} each`
+                  : `${formatCents(centsOf(line.price))} each · ${formatCents(
+                      centsOf(line.price) * line.quantity,
+                    )} for ${line.quantity}`}
+              </p>
+            )}
           </div>
         ))}
 
@@ -173,8 +229,11 @@ export function RestaurantOrderForm({ windows }: { windows: EntryWindow[] }) {
         </Button>
 
         <p className="text-sm text-muted-foreground">
-          Quantity caps at 20. For a bigger order put the whole amount in one line
-          — “40 lb tomatoes” at the quoted price, quantity 1.
+          Use <span className="font-medium">Each</span> when you know the per-unit
+          price, or <span className="font-medium">Line total</span> when all you
+          have is the figure you quoted. Quantity caps at 20 — for more than that,
+          put the amount in the item name (“40 lb tomatoes”), set quantity to 1,
+          and enter the line total.
         </p>
       </fieldset>
 

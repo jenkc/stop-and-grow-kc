@@ -42,11 +42,18 @@ export type IntakeResult =
  * box_tier_id is null on these: order_items.box_tier_id is nullable precisely so
  * a line can exist without a catalog row behind it. Nothing about the schema
  * needed to change for this.
+ *
+ * Both prices are carried because both columns are NOT NULL and they are stored
+ * independently — there is no constraint tying line_total to unit * quantity.
+ * The caller decides which one Scraps typed and derives the other, so a line
+ * quoted as a lump sum keeps that exact total instead of a rounded unit price
+ * multiplied back up.
  */
 export type CustomLine = {
   description: string
   quantity: number
   unitPriceCents: number
+  lineTotalCents: number
 }
 
 export type IntakeFields = {
@@ -176,10 +183,10 @@ export async function writeCustomOrder(opts: {
   lines: CustomLine[]
   status?: Enums<'order_status'>
 }): Promise<IntakeResult> {
-  const subtotalCents = opts.lines.reduce(
-    (sum, l) => sum + l.unitPriceCents * l.quantity,
-    0,
-  )
+  // Sum the stored line totals, not unit * quantity — for a line entered as a
+  // lump sum those differ by the rounding remainder, and the total she quoted is
+  // the one that has to survive.
+  const subtotalCents = opts.lines.reduce((sum, l) => sum + l.lineTotalCents, 0)
   const admin = createAdminClient()
 
   const { data: order, error: orderError } = await admin
@@ -223,7 +230,7 @@ export async function writeCustomOrder(opts: {
       description: l.description,
       quantity: l.quantity,
       unit_price_cents: l.unitPriceCents,
-      line_total_cents: l.unitPriceCents * l.quantity,
+      line_total_cents: l.lineTotalCents,
     })),
   )
 

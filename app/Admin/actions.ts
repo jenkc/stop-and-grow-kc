@@ -177,12 +177,17 @@ export async function createRestaurantOrder(
   if (!validated.ok) return { error: validated.error }
   const fields = validated.fields
 
-  // Parallel arrays: the form repeats these three names per row.
+  // Parallel arrays: the form repeats these four names per row.
   const descriptions = formData.getAll('lineDescription').map(String)
   const quantities = formData.getAll('lineQuantity').map(String)
   const prices = formData.getAll('linePrice').map(String)
+  const priceModes = formData.getAll('linePriceMode').map(String)
 
-  if (descriptions.length !== quantities.length || descriptions.length !== prices.length) {
+  if (
+    descriptions.length !== quantities.length ||
+    descriptions.length !== prices.length ||
+    descriptions.length !== priceModes.length
+  ) {
     return { error: 'Those order lines did not come through. Try again.' }
   }
   if (descriptions.length > MAX_LINES) {
@@ -214,12 +219,27 @@ export async function createRestaurantOrder(
       return { error: `Line ${i + 1}: quantity must be a whole number from 1 to 20.` }
     }
 
-    const unitPriceCents = parseMoneyToCents(rawPrice)
-    if (unitPriceCents === null) {
+    const amountCents = parseMoneyToCents(rawPrice)
+    if (amountCents === null) {
       return { error: `Line ${i + 1}: price must be an amount like 45 or 45.50.` }
     }
 
-    lines.push({ description: bounded.value, quantity, unitPriceCents })
+    // Both columns are NOT NULL, so whichever figure she did not type gets
+    // derived. Entering a total is the case where the derived unit price may not
+    // divide evenly — $50 across 3 is $16.67 each, which multiplies back to
+    // $50.01 — so the typed total is stored verbatim and the unit price is the
+    // approximation. The reverse when she types a unit price. In both
+    // directions the number she was given on the phone is the one that survives.
+    const total = priceModes[i] === 'total'
+    const lineTotalCents = total ? amountCents : amountCents * quantity
+    const unitPriceCents = total ? Math.round(amountCents / quantity) : amountCents
+
+    lines.push({
+      description: bounded.value,
+      quantity,
+      unitPriceCents,
+      lineTotalCents,
+    })
   }
 
   if (lines.length === 0) return { error: 'Add at least one line to the order.' }
