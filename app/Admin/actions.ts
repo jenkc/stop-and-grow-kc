@@ -501,14 +501,24 @@ export async function markUnpaid(orderId: string): Promise<AdminActionState> {
  * it applies. A general line-item editor (arbitrary description and price, for
  * restaurant orders) is phase 3b and will replace this.
  */
-export async function addDeliveryFee(orderId: string): Promise<AdminActionState> {
+export async function addDeliveryFee(
+  orderId: string,
+  amountCents: number = DELIVERY_FEE_CENTS,
+): Promise<AdminActionState> {
   if (!(await requireAdmin())) return FORBIDDEN
+
+  // $5 is the usual figure, not a fixed one — a run to Independence is not the
+  // same as one to Westport, and she is the one deciding. Bounded rather than
+  // trusted: this is a public POST like any other action.
+  if (!Number.isInteger(amountCents) || amountCents < 0 || amountCents > 100_00) {
+    return { error: 'Enter a delivery fee between $0 and $100.' }
+  }
 
   const admin = createAdminClient()
 
   const { data: order, error: readError } = await admin
     .from('orders')
-    .select('id, total_cents')
+    .select('id, total_cents, delivery_fee_cents')
     .eq('id', orderId)
     .single()
 
@@ -533,8 +543,8 @@ export async function addDeliveryFee(orderId: string): Promise<AdminActionState>
       box_tier_id: null,
       description: DELIVERY_FEE_DESCRIPTION,
       quantity: 1,
-      unit_price_cents: DELIVERY_FEE_CENTS,
-      line_total_cents: DELIVERY_FEE_CENTS,
+      unit_price_cents: amountCents,
+      line_total_cents: amountCents,
     },
   ])
 
@@ -543,9 +553,16 @@ export async function addDeliveryFee(orderId: string): Promise<AdminActionState>
     return { error: 'Could not add the delivery fee.' }
   }
 
+  // delivery_fee_cents as well as the total. It was previously left at 0, so
+  // anything keying off it — the row menu's add-vs-remove label, any future
+  // report separating goods from delivery — read the fee as absent on an order
+  // that had one.
   const { error: totalError } = await admin
     .from('orders')
-    .update({ total_cents: order.total_cents + DELIVERY_FEE_CENTS })
+    .update({
+      total_cents: order.total_cents + amountCents,
+      delivery_fee_cents: amountCents,
+    })
     .eq('id', orderId)
 
   if (totalError) {
@@ -596,6 +613,10 @@ export async function removeDeliveryFee(orderId: string): Promise<AdminActionSta
       .from('orders')
       .update({
         total_cents: Math.max(0, order.total_cents - line.line_total_cents),
+        // Cleared alongside the total, for the same reason addDeliveryFee sets
+        // it: leaving a stale figure here means the order still claims a
+        // delivery fee it no longer has a line for.
+        delivery_fee_cents: 0,
       })
       .eq('id', orderId)
   }

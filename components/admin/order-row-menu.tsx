@@ -8,7 +8,7 @@ import {
   addDeliveryFee,
   removeDeliveryFee,
 } from "@/app/Admin/actions";
-import { DELIVERY_FEE_CENTS, formatCents } from "@/lib/pricing";
+import { DELIVERY_FEE_CENTS } from "@/lib/pricing";
 import {
   Menu,
   MenuContent,
@@ -31,8 +31,15 @@ import {
  * Opening a menu is not consent, and a mis-tap in a dense list is exactly how
  * the wrong order gets cancelled.
  */
-/** Which destructive action is waiting on a second tap. */
-type Confirming = null | "cancel" | "unpay";
+/** Which action is waiting on a second step. */
+type Confirming = null | "cancel" | "unpay" | "fee";
+
+/** Dollars as typed -> integer cents. Mirrors parseMoneyToCents on the server. */
+function centsOf(value: string): number | null {
+  const cleaned = value.trim().replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  return Math.round(Number(cleaned) * 100);
+}
 
 export function OrderRowMenu({
   orderId,
@@ -55,9 +62,55 @@ export function OrderRowMenu({
   const [error, setError] = useState<string | null>(null);
   const [justCancelled, setJustCancelled] = useState(false);
   const [justUnpaid, setJustUnpaid] = useState(false);
+  // Pre-filled with the usual $5. She is confirming a number, not composing
+  // one — the common case should be two taps and no typing.
+  const [feeAmount, setFeeAmount] = useState(
+    (DELIVERY_FEE_CENTS / 100).toFixed(2),
+  );
 
   const cancelled = status === "cancelled" || justCancelled;
   const paid = paymentStatus === "paid" && !justUnpaid;
+
+  if (confirming === "fee") {
+    const cents = centsOf(feeAmount);
+    return (
+      <span className="inline-flex items-center gap-1">
+        <span className="text-xs text-muted-foreground">$</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={feeAmount}
+          onChange={(e) => setFeeAmount(e.target.value)}
+          aria-label="Delivery fee amount"
+          autoFocus
+          className="h-9 w-16 rounded-md border border-line-mid bg-paper px-2 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        />
+        <button
+          type="button"
+          disabled={pending || cents === null}
+          onClick={() =>
+            startTransition(async () => {
+              if (cents === null) return;
+              const result = await addDeliveryFee(orderId, cents);
+              if (result.error) setError(result.error);
+              setConfirming(null);
+            })
+          }
+          className="min-h-9 rounded-md border border-line-mid px-2.5 text-xs font-medium disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {pending ? "Adding…" : "Add"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => setConfirming(null)}
+          className="min-h-9 px-1.5 text-xs text-muted-foreground underline"
+        >
+          Cancel
+        </button>
+      </span>
+    );
+  }
 
   if (confirming) {
     const isCancel = confirming === "cancel";
@@ -130,18 +183,20 @@ export function OrderRowMenu({
         {!cancelled && fulfillment === "delivery" && (
           <MenuItem
             disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const result = hasDeliveryFee
-                  ? await removeDeliveryFee(orderId)
-                  : await addDeliveryFee(orderId);
-                if (result.error) setError(result.error);
-              })
-            }
+            onClick={() => {
+              // Removing needs no amount — there is only one fee line to take
+              // off. Adding opens the amount prompt.
+              if (hasDeliveryFee) {
+                startTransition(async () => {
+                  const result = await removeDeliveryFee(orderId);
+                  if (result.error) setError(result.error);
+                });
+              } else {
+                setConfirming("fee");
+              }
+            }}
           >
-            {hasDeliveryFee
-              ? "Remove delivery fee"
-              : `Add ${formatCents(DELIVERY_FEE_CENTS)} delivery fee`}
+            {hasDeliveryFee ? "Remove delivery fee" : "Add delivery fee…"}
           </MenuItem>
         )}
 
