@@ -436,6 +436,64 @@ export async function markOnePaid(
 }
 
 /**
+ * Undo a mistaken "paid".
+ *
+ * This is error correction, not a refund. Nothing was given back — the order
+ * was marked paid when it should not have been — so the ledger row is VOIDED
+ * rather than deleted or offset by a negative entry.
+ *
+ * Voiding keeps payments append-only in the way that matters: the row stays,
+ * carrying what was recorded and that it was retracted, so the order detail
+ * page can show "cash $25.00 — voided" instead of the payment silently never
+ * having existed. Deleting would erase a record of money someone may actually
+ * have handed over.
+ *
+ * payments.status is free text with a 'succeeded' default, so 'voided' needs no
+ * migration. Only two places in the app read this table — this write and the
+ * order detail page — so there is no total elsewhere that a voided row would
+ * quietly corrupt. Any future sum MUST filter on status = 'succeeded'.
+ *
+ * If real money genuinely changed hands and is being returned, that is a refund
+ * and wants its own concept (payment_status already has a 'refunded' member).
+ * This is deliberately not that.
+ */
+export async function markUnpaid(orderId: string): Promise<AdminActionState> {
+  if (!(await requireAdmin())) return FORBIDDEN
+
+  const admin = createAdminClient()
+
+  // Only the ones still standing. Voiding an already-voided row would restamp
+  // it and lose when the correction actually happened.
+  const { error: voidError } = await admin
+    .from('payments')
+    .update({ status: 'voided' })
+    .eq('order_id', orderId)
+    .eq('status', 'succeeded')
+
+  if (voidError) {
+    console.error('[admin] markUnpaid void failed:', voidError)
+    return { error: 'Could not void that payment.' }
+  }
+
+  // Ledger first, then the order — the same order as markPaid, and for the same
+  // reason. If this half fails the payment is voided but the order still reads
+  // paid, which is visible and fixable; the reverse would show an unpaid order
+  // with a live payment behind it.
+  const { error: orderError } = await admin
+    .from('orders')
+    .update({ payment_status: 'unpaid', amount_paid_cents: 0 })
+    .eq('id', orderId)
+
+  if (orderError) {
+    console.error('[admin] markUnpaid order update failed:', orderError)
+    return { error: 'Voided the payment, but the order still shows paid.' }
+  }
+
+  revalidateAdmin()
+  return { ok: 'Marked unpaid.' }
+}
+
+/**
  * Add the delivery fee to an order.
  *
  * Narrow on purpose. The fee is not charged automatically at checkout because

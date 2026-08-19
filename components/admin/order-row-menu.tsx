@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { DotsThreeVertical } from "@phosphor-icons/react";
 import {
   cancelOrder,
+  markUnpaid,
   addDeliveryFee,
   removeDeliveryFee,
 } from "@/app/Admin/actions";
@@ -30,28 +31,36 @@ import {
  * Opening a menu is not consent, and a mis-tap in a dense list is exactly how
  * the wrong order gets cancelled.
  */
+/** Which destructive action is waiting on a second tap. */
+type Confirming = null | "cancel" | "unpay";
+
 export function OrderRowMenu({
   orderId,
   orderNumber,
   status,
+  paymentStatus,
   fulfillment,
   hasDeliveryFee,
 }: {
   orderId: string;
   orderNumber: string;
   status: string;
+  paymentStatus: string;
   fulfillment: string;
   /** delivery_fee_cents > 0 — drives add vs remove. */
   hasDeliveryFee: boolean;
 }) {
   const [pending, startTransition] = useTransition();
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<Confirming>(null);
   const [error, setError] = useState<string | null>(null);
   const [justCancelled, setJustCancelled] = useState(false);
+  const [justUnpaid, setJustUnpaid] = useState(false);
 
   const cancelled = status === "cancelled" || justCancelled;
+  const paid = paymentStatus === "paid" && !justUnpaid;
 
   if (confirming) {
+    const isCancel = confirming === "cancel";
     return (
       <span className="inline-flex items-center gap-1.5">
         <button
@@ -59,20 +68,29 @@ export function OrderRowMenu({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const result = await cancelOrder(orderId);
+              const result = isCancel
+                ? await cancelOrder(orderId)
+                : await markUnpaid(orderId);
               if (result.error) setError(result.error);
-              else setJustCancelled(true);
-              setConfirming(false);
+              else if (isCancel) setJustCancelled(true);
+              else setJustUnpaid(true);
+              setConfirming(null);
             })
           }
           className="min-h-9 rounded-md bg-crit-tint px-2.5 text-xs font-bold disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          {pending ? "Cancelling…" : `Cancel ${orderNumber}?`}
+          {pending
+            ? isCancel
+              ? "Cancelling…"
+              : "Undoing…"
+            : isCancel
+              ? `Cancel ${orderNumber}?`
+              : "Mark unpaid?"}
         </button>
         <button
           type="button"
           disabled={pending}
-          onClick={() => setConfirming(false)}
+          onClick={() => setConfirming(null)}
           className="min-h-9 px-1.5 text-xs text-muted-foreground underline"
         >
           Keep
@@ -127,11 +145,20 @@ export function OrderRowMenu({
           </MenuItem>
         )}
 
+        {/* Only offered on an order that IS paid, so the menu never presents an
+            action with nothing to undo. Voids the payment rather than deleting
+            it — see markUnpaid(). */}
+        {paid && (
+          <MenuItem onClick={() => setConfirming("unpay")}>
+            Mark unpaid
+          </MenuItem>
+        )}
+
         {!cancelled && (
           <>
             <MenuSeparator />
             <MenuItem
-              onClick={() => setConfirming(true)}
+              onClick={() => setConfirming("cancel")}
               className="text-destructive"
             >
               Cancel order

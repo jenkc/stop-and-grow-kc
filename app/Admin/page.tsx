@@ -221,6 +221,7 @@ export default async function Admin() {
                           orderId={r.id}
                           orderNumber={r.order_number}
                           status={r.status}
+                          paymentStatus={r.payment_status}
                           fulfillment={r.fulfillment}
                           hasDeliveryFee={r.delivery_fee_cents > 0}
                         />

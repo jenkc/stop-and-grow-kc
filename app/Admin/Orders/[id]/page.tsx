@@ -210,21 +210,39 @@ export default async function OrderDetail({
           </p>
         ) : (
           <ul className="space-y-1 text-sm">
-            {(payments ?? []).map((p) => (
-              <li key={p.id} className="flex justify-between gap-4">
-                <span>
-                  {p.method}
-                  {p.received_at && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {new Date(p.received_at).toLocaleDateString("en-US", {
-                        dateStyle: "medium",
-                      })}
-                    </span>
-                  )}
-                </span>
-                <span className="figure">{formatCents(p.amount_cents)}</span>
-              </li>
-            ))}
+            {(payments ?? []).map((p) => {
+              // A voided row is a correction, not a payment. It stays visible —
+              // that is the point of voiding rather than deleting — but must
+              // never read as money still counted.
+              const voided = p.status === "voided";
+              return (
+                <li
+                  key={p.id}
+                  className={`flex justify-between gap-4 ${
+                    voided ? "text-muted-foreground" : ""
+                  }`}
+                >
+                  <span>
+                    {p.method}
+                    {voided && (
+                      <span className="ml-2 rounded bg-crit-tint px-1.5 py-0.5 text-xs font-medium">
+                        voided
+                      </span>
+                    )}
+                    {p.received_at && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {new Date(p.received_at).toLocaleDateString("en-US", {
+                          dateStyle: "medium",
+                        })}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`figure ${voided ? "line-through" : ""}`}>
+                    {formatCents(p.amount_cents)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>
