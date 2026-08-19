@@ -19,7 +19,45 @@ import {
 } from '@/lib/validation'
 import type { Enums } from '@/lib/supabase/database.types'
 
-export type OrderState = { error?: string }
+/**
+ * `values` echoes back what was submitted so a rejected order can be re-rendered
+ * with the fields still filled in.
+ *
+ * Without it a customer who forgets one field loses their name, email and whole
+ * address: those inputs are uncontrolled, so React resets them to empty on the
+ * re-render that shows the error. On a phone, outdoors, that is where an order
+ * gets abandoned rather than corrected.
+ *
+ * The controlled fields (box, quantity, fulfillment, phone, entry source) hold
+ * their own state and are not echoed here.
+ */
+export type OrderValues = {
+  custName?: string
+  custEmail?: string
+  streetAddress?: string
+  aptSuite?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  dietaryNotes?: string
+}
+
+export type OrderState = { error?: string; values?: OrderValues }
+
+/** Everything the form needs back to redraw itself unchanged. */
+function submittedValues(formData: FormData): OrderValues {
+  const s = (k: string) => String(formData.get(k) ?? '')
+  return {
+    custName: s('custName'),
+    custEmail: s('custEmail'),
+    streetAddress: s('streetAddress'),
+    aptSuite: s('aptSuite'),
+    city: s('city'),
+    state: s('state'),
+    zipCode: s('zipCode'),
+    dietaryNotes: s('dietaryNotes'),
+  }
+}
 
 const MAX_QUANTITY = 20
 
@@ -44,6 +82,17 @@ export async function placeOrder(
   _prev: unknown,
   formData: FormData,
 ): Promise<OrderState> {
+  // Wrapped so that EVERY error path echoes the submitted values back, without
+  // 22 return sites each having to remember. A missed one silently empties the
+  // customer's form, which is exactly the bug this fixes — so the guarantee
+  // belongs here rather than in each branch.
+  //
+  // The happy path never returns: it redirects, which throws internally.
+  const result = await runPlaceOrder(formData)
+  return result.error ? { ...result, values: submittedValues(formData) } : result
+}
+
+async function runPlaceOrder(formData: FormData): Promise<OrderState> {
   const supabase = await createClient()
 
   // The gate. /Order also checks this to decide whether to render the form, but

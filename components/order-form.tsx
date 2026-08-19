@@ -128,6 +128,7 @@ export function OrderForm({
                         maxLength={LIMITS.name}
                         autoComplete="name"
                         placeholder="Enter your name"
+                        defaultValue={state?.values?.custName}
                     />
                 </Field>
 
@@ -140,6 +141,7 @@ export function OrderForm({
                         maxLength={LIMITS.email}
                         autoComplete="email"
                         placeholder="Enter your email"
+                        defaultValue={state?.values?.custEmail}
                     />
                 </Field>
 
@@ -234,6 +236,7 @@ export function OrderForm({
                                 maxLength={LIMITS.street}
                                 autoComplete="address-line1"
                                 placeholder="Enter your delivery address"
+                                defaultValue={state?.values?.streetAddress}
                             />
                         </Field>
 
@@ -246,6 +249,7 @@ export function OrderForm({
                                 maxLength={LIMITS.apt}
                                 autoComplete="address-line2"
                                 placeholder="Apt 4B"
+                                defaultValue={state?.values?.aptSuite}
                             />
                         </Field>
 
@@ -263,12 +267,18 @@ export function OrderForm({
                                     maxLength={LIMITS.city}
                                     autoComplete="address-level2"
                                     placeholder="City"
+                                    defaultValue={state?.values?.city}
                                 />
                             </Field>
 
                             <Field>
                                 <FieldLabel htmlFor="state">State</FieldLabel>
-                                <NativeSelect id="state" name="state" required>
+                                <NativeSelect
+                                    id="state"
+                                    name="state"
+                                    required
+                                    defaultValue={state?.values?.state}
+                                >
                                     <option value="">Select...</option>
                                     <option value="KS">Kansas</option>
                                     <option value="MO">Missouri</option>
@@ -289,6 +299,7 @@ export function OrderForm({
                                 maxLength={10}
                                 autoComplete="postal-code"
                                 placeholder="64111"
+                                defaultValue={state?.values?.zipCode}
                             />
                         </Field>
                     </>
@@ -330,6 +341,7 @@ export function OrderForm({
                         rows={2}
                         maxLength={LIMITS.notes}
                         placeholder="No celery or beets"
+                        defaultValue={state?.values?.dietaryNotes}
                     />
                 </Field>
 
