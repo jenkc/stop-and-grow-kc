@@ -14,6 +14,26 @@ export const SITE_URL = 'https://stopandgrowkc.org'
  */
 export const CONTACT_EMAIL = 'orders@stopandgrowkc.org'
 
+/**
+ * Who gets told when an order comes in.
+ *
+ * Sent to directly by Resend rather than routed through orders@. That address
+ * forwards to jenkimkc@gmail.com only (verified 2026-08-19 against the
+ * Cloudflare Email Routing rules), so routing would not reach Scraps at all —
+ * and repointing it would take order mail away from Jen.
+ *
+ * Two Gmail addresses because Scraps signed up under scrapsiswhat@ while
+ * stopandgrowkc@ is the business inbox; which one she actually watches is not
+ * settled yet, and a missed order costs more than a duplicate email.
+ *
+ * These are external mailboxes, not domain addresses, so they do not depend on
+ * Email Routing and will keep working if it changes.
+ */
+export const ORDER_NOTIFY_EMAILS = [
+  'stopandgrowkc@gmail.com',
+  'scrapsiswhat@gmail.com',
+]
+
 const INK = '#1f2417'
 const MUTED = '#5c6452'
 const PRIMARY = '#4a7c2f'

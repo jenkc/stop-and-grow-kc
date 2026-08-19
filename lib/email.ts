@@ -3,7 +3,8 @@ import { render } from '@react-email/components'
 import { Resend } from 'resend'
 import { WelcomeEmail } from '@/emails/welcome'
 import { ContactMessageEmail } from '@/emails/contact-message'
-import { CONTACT_EMAIL } from '@/emails/theme'
+import { NewOrderEmail, type NewOrderEmailProps } from '@/emails/new-order'
+import { CONTACT_EMAIL, ORDER_NOTIFY_EMAILS } from '@/emails/theme'
 
 /**
  * Transactional mail sent by the app itself.
@@ -48,6 +49,52 @@ export async function sendWelcomeEmail(to: string, name?: string): Promise<void>
         if (error) console.error('[email] welcome send failed:', error)
     } catch (err) {
         console.error('[email] welcome send threw:', err)
+    }
+}
+
+export type NewOrderNotification = NewOrderEmailProps
+
+/**
+ * Tell Scraps an order came in.
+ *
+ * Fires from placeOrder() only — the public form. An order she typed herself at
+ * /Admin/New does not need an email about her own typing.
+ *
+ * Failure is logged, never surfaced: this runs inside after(), so the customer
+ * has already been redirected to their confirmation by the time it executes.
+ * The order row is committed either way, and it is on /Admin and the runsheet
+ * regardless of whether this email arrives — which is what the closing line of
+ * the template says, so a missing notification is never a missing order.
+ */
+export async function sendNewOrderEmail(
+    order: NewOrderNotification,
+): Promise<void> {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+        console.warn('[email] RESEND_API_KEY unset — skipping order notification')
+        return
+    }
+
+    try {
+        const html = await render(NewOrderEmail(order))
+        const text = await render(NewOrderEmail(order), { plainText: true })
+
+        const { error } = await new Resend(apiKey).emails.send({
+            from: FROM,
+            // Sent direct to the mailboxes rather than through orders@, which
+            // forwards to Jen only. See ORDER_NOTIFY_EMAILS.
+            to: ORDER_NOTIFY_EMAILS,
+            subject: `New order ${order.orderNumber} — ${order.contactName}, ${order.total}`,
+            html,
+            text,
+            // Reply reaches the customer. She often just wants to ask about an
+            // address or a substitution.
+            replyTo: order.contactEmail || CONTACT_EMAIL,
+        })
+
+        if (error) console.error('[email] order notification failed:', error)
+    } catch (err) {
+        console.error('[email] order notification threw:', err)
     }
 }
 

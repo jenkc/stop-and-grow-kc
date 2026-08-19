@@ -2,9 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrderingCycle, closedMessage } from '@/lib/cycle'
+import { sendNewOrderEmail } from '@/lib/email'
+import { formatCents } from '@/lib/pricing'
 import {
   LIMITS,
   boundedText,
@@ -275,5 +278,51 @@ export async function placeOrder(
   }
 
   revalidatePath('/Order')
+
+  // Tell Scraps. after() runs once the response is on its way, so the Resend
+  // round trip never sits between the customer and their confirmation page —
+  // the same reason /auth/confirm sends the welcome email this way.
+  //
+  // Everything it needs is already in hand except the window's label, which was
+  // looked up above as an id. Read it here rather than inside the email helper:
+  // a notification must not be able to throw a database error into the order
+  // path, and after() has no way to report one.
+  const { data: windowRow } = await supabase
+    .from('delivery_windows')
+    .select('label')
+    .eq('id', window.id)
+    .maybeSingle()
+
+  const addressLines = isDelivery
+    ? [
+        streetField.value,
+        aptField.value,
+        [cityField.value, state].filter(Boolean).join(', ') + (zip ? ` ${zip}` : ''),
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : null
+
+  after(() =>
+    sendNewOrderEmail({
+      orderNumber: order.order_number,
+      contactName,
+      contactEmail: emailField.value || null,
+      contactPhone: phoneField.value || null,
+      fulfillment,
+      windowLabel: windowRow?.label ?? null,
+      total: formatCents(subtotalCents + deliveryFeeCents),
+      items: [
+        {
+          description: tier.name,
+          quantity,
+          lineTotal: formatCents(subtotalCents),
+        },
+      ],
+      dietaryNotes: notesField.value || null,
+      address: addressLines,
+    }),
+  )
+
   redirect(`/Order?placed=${order.order_number}`)
 }
