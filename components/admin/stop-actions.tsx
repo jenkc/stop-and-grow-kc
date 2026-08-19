@@ -1,7 +1,16 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { DotsThreeVertical } from "@phosphor-icons/react";
 import { setOrderStatus, cancelOrder } from "@/app/Admin/actions";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuLinkItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu";
 
 /**
  * The buttons on a stop.
@@ -10,6 +19,10 @@ import { setOrderStatus, cancelOrder } from "@/app/Admin/actions";
  * that is packed offers "Delivered". Showing every state as a row of equal
  * buttons would mean reading four labels to find the one that applies — here
  * the next step is the only large target.
+ *
+ * Everything that is not that next step sits behind the ⋮ menu, matching the
+ * orders table. On a doorstep, one-handed, the destructive action must not be a
+ * sibling of the one she is reaching for.
  *
  * The delivery fee used to live here and has moved to the row menu on /Admin.
  * On a doorstep with an armful of boxes the only questions are "is this the
@@ -31,6 +44,7 @@ export function StopActions({
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const next = NEXT[status];
   const cancelled = status === "cancelled";
@@ -74,18 +88,51 @@ export function StopActions({
           </button>
         )}
 
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            if (confirm("Cancel this order? It stays in the records.")) {
-              run(() => cancelOrder(orderId));
-            }
-          }}
-          className="flex min-h-11 items-center justify-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-destructive disabled:opacity-60"
-        >
-          Cancel
-        </button>
+        {/* Cancel moved behind a menu. It used to be a flat button next to the
+            primary action, one tap from destroying a stop on a screen used
+            one-handed in a van — and it opened a confirm() dialog, which on a
+            phone covers the very card being asked about. */}
+        {confirming ? (
+          <span className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => cancelOrder(orderId))}
+              className="flex min-h-11 items-center justify-center rounded-md bg-crit-tint px-3 text-sm font-bold disabled:opacity-60"
+            >
+              {pending ? "Cancelling…" : "Cancel it?"}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConfirming(false)}
+              className="min-h-11 px-2 text-sm text-muted-foreground underline"
+            >
+              Keep
+            </button>
+          </span>
+        ) : (
+          <Menu>
+            <MenuTrigger
+              className="flex min-h-11 items-center justify-center rounded-md px-3 text-muted-foreground transition-colors hover:bg-paper-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label="More actions for this stop"
+            >
+              <DotsThreeVertical size={20} weight="bold" aria-hidden="true" />
+            </MenuTrigger>
+            <MenuContent>
+              <MenuLinkItem href={`/Admin/Orders/${orderId}`}>
+                View order details
+              </MenuLinkItem>
+              <MenuSeparator />
+              <MenuItem
+                onClick={() => setConfirming(true)}
+                className="text-destructive"
+              >
+                Cancel order
+              </MenuItem>
+            </MenuContent>
+          </Menu>
+        )}
       </div>
 
       {message && (
