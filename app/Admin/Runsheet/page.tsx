@@ -34,10 +34,15 @@ const STOP_FIELDS = `
 export default async function Runsheet() {
   const admin = createAdminClient();
 
+  // Draft weeks are included deliberately. Restaurant orders are entered by hand
+  // from /Admin/New, which is not gated on ordering being open — so a week can
+  // hold real deliveries while its public form has never been switched on.
+  // Filtering to open/closed made those orders invisible on the one screen the
+  // delivery day is run from. 'fulfilled' stays out: that week is done.
   const { data: cycle } = await admin
     .from("distribution_cycles")
     .select("id, cycle_date, title, status")
-    .in("status", ["open", "closed"])
+    .in("status", ["draft", "open", "closed"])
     .order("cycle_date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -45,7 +50,7 @@ export default async function Runsheet() {
   if (!cycle) {
     return (
       <EmptyState
-        title="No active week"
+        title="No week yet"
         body="Create this week under “This week” before the runsheet has anything to show."
       />
     );
@@ -57,15 +62,39 @@ export default async function Runsheet() {
     .eq("cycle_id", cycle.id)
     .order("starts_at");
 
+  const windowIds = (windows ?? []).map((w) => w.id);
+
+  // Scoped to THIS cycle's windows. Without the filter this read every
+  // non-cancelled order ever placed, and any order belonging to another week
+  // landed under "No time set" — last week's unfulfilled orders turning up on
+  // today's route. An order with no window at all cannot be attributed to a
+  // cycle, so it is fetched separately below.
+  //
   // Cancelled orders are excluded: they are not stops. The rows survive in the
   // database — cancelling keeps the record, it just leaves the route.
-  const { data: liveOrders } = await admin
+  const { data: liveOrders } = windowIds.length
+    ? await admin
+        .from("orders")
+        .select(STOP_FIELDS)
+        .neq("status", "cancelled")
+        .in("window_id", windowIds)
+        .order("contact_name")
+    : { data: [] };
+
+  // Orders that never got a window. createOrder() requires one, so these are
+  // legacy rows — surfaced rather than hidden, because an order nobody can see
+  // is an order that gets missed.
+  const { data: orphanOrders } = await admin
     .from("orders")
     .select(STOP_FIELDS)
     .neq("status", "cancelled")
+    .is("window_id", null)
     .order("contact_name");
 
-  const stops = (liveOrders ?? []) as unknown as (Stop & { window_id: string | null })[];
+  const stops = [
+    ...((liveOrders ?? []) as unknown as (Stop & { window_id: string | null })[]),
+    ...((orphanOrders ?? []) as unknown as (Stop & { window_id: string | null })[]),
+  ];
 
   const groups: WindowGroup[] = (windows ?? []).map((w) => ({
     id: w.id,
@@ -88,13 +117,22 @@ export default async function Runsheet() {
         <p className="mt-1 text-sm text-muted-foreground">
           {cycle.title ?? cycle.cycle_date} · {total}{" "}
           {total === 1 ? "order" : "orders"}
+          {/* Says why the public form is quiet, so a draft week with hand-entered
+              restaurant orders does not read as a broken page. */}
+          {cycle.status === "draft" && (
+            <> · ordering not open yet</>
+          )}
         </p>
       </header>
 
       {total === 0 ? (
         <EmptyState
           title="No orders yet"
-          body="Orders will appear here as they come in."
+          body={
+            cycle.status === "draft"
+              ? "Add one from Orders → New order, or open ordering under “This week” to take them from the site."
+              : "Orders will appear here as they come in."
+          }
         />
       ) : (
         <div className="space-y-10">
